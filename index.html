@@ -2,7 +2,7 @@
 <html lang="vi">
 <head>
 <meta charset="utf-8" />
-<title>HCM WebGIS – Bản đồ hành chính + OSM/Esri/Bing</title>
+<title>HCM WebGIS – Bản đồ hành chính + Nhãn địa danh</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <!-- Leaflet CSS -->
@@ -14,6 +14,12 @@
   html, body, #map {height:100%; margin:0; padding:0;}
   .leaflet-bar button {display:block; width:100%; border:none; background:white; padding:5px; cursor:pointer;}
   .leaflet-bar button:hover {background:#eee;}
+  .label-text {
+    font-size: 11px;
+    font-weight: bold;
+    color: #000;
+    text-shadow: 0 0 2px #fff, 0 0 4px #fff;
+  }
 </style>
 </head>
 <body>
@@ -26,7 +32,7 @@
 
 <script>
 window.onload = function() {
-  // --- Tạo bản đồ ---
+  // --- Khởi tạo bản đồ ---
   const map = L.map('map', {center: [10.776,106.7], zoom: 12});
 
   // --- Các lớp nền ---
@@ -45,15 +51,17 @@ window.onload = function() {
   };
 
   // --- Lớp hành chính ---
-  let hcmLayer;
+  let hcmLayer, labelLayer;
   const hanhChinhGroup = L.layerGroup();
+  const labelGroup = L.layerGroup();
 
-  // --- Nạp địa giới ---
+  // --- Hàm nạp địa giới ---
   async function loadHCM() {
     try {
       const res = await fetch('assets/TPHCM.geojson');
       const data = await res.json();
       if (hcmLayer) hanhChinhGroup.removeLayer(hcmLayer);
+      if (labelLayer) labelGroup.clearLayers();
 
       hcmLayer = L.geoJSON(data, {
         style: { color: "#ff0000", weight: 1, fillOpacity: 0.1 },
@@ -64,10 +72,43 @@ window.onload = function() {
         }
       }).addTo(hanhChinhGroup);
 
-      alert("✅ Đã nạp bản đồ hành chính!");
+      // --- Tạo nhãn địa danh ---
+      data.features.forEach(f => {
+        const p = f.properties || {};
+        if (f.geometry && f.geometry.type === "Polygon" || f.geometry.type === "MultiPolygon") {
+          const center = getCenter(f);
+          if (center) {
+            const label = L.marker(center, {
+              icon: L.divIcon({
+                className: "label-text",
+                html: p.ten_xa || "",
+              })
+            });
+            labelGroup.addLayer(label);
+          }
+        }
+      });
+
+      hanhChinhGroup.addTo(map);
+      console.log("✅ Đã tải địa giới hành chính + nhãn địa danh!");
     } catch(e) {
       alert("❌ Không thể tải file 'assets/TPHCM.geojson'");
       console.error(e);
+    }
+  }
+
+  // --- Hàm tính trung tâm vùng ---
+  function getCenter(feature) {
+    try {
+      const coords = (feature.geometry.type === "Polygon")
+        ? feature.geometry.coordinates[0]
+        : feature.geometry.coordinates[0][0];
+      let lat = 0, lng = 0;
+      coords.forEach(c => { lng += c[0]; lat += c[1]; });
+      const n = coords.length;
+      return [lat/n, lng/n];
+    } catch {
+      return null;
     }
   }
 
@@ -90,7 +131,10 @@ window.onload = function() {
   L.control.measureControl({ position: 'topleft', primaryLengthUnit: 'meters', primaryAreaUnit: 'sqmeters' }).addTo(map);
 
   // --- Layer control ---
-  const overlayMaps = { "🗺️ Bản đồ hành chính": hanhChinhGroup };
+  const overlayMaps = {
+    "🗺️ Bản đồ hành chính": hanhChinhGroup,
+    "🔤 Tên địa danh": labelGroup
+  };
   L.control.layers(baseMaps, overlayMaps).addTo(map);
 
   // --- Panel ---
@@ -98,7 +142,6 @@ window.onload = function() {
   panel.onAdd = function(){
     const div = L.DomUtil.create('div','leaflet-bar');
     div.innerHTML = `
-      <button onclick="window._loadHCM()">🗺️ Nạp địa giới</button>
       <button onclick="window._hideHCM()">Ẩn địa giới</button>
       <button onclick="window._clearColors()">🎨 Xóa tô màu</button>
     `;
@@ -107,9 +150,11 @@ window.onload = function() {
   panel.addTo(map);
 
   // --- Cho phép gọi từ ngoài ---
-  window._loadHCM = loadHCM;
   window._hideHCM = () => { if (hcmLayer) hanhChinhGroup.removeLayer(hcmLayer); };
   window._clearColors = clearColors;
+
+  // --- Tự động nạp địa giới khi mở trang ---
+  loadHCM();
 };
 </script>
 </body>
