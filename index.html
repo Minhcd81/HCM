@@ -12,6 +12,9 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet-compass/dist/leaflet-compass.css"/>
 <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css"/>
 
+<!-- Google Places Autocomplete -->
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyARhMzsywQPyQbrbgS6aFVb5sg7eSV34oA&libraries=places"></script>
+
 <style>
   html, body, #map {height:100%; margin:0; padding:0;}
   .leaflet-bar button {display:block; width:100%; border:none; background:white; padding:5px; cursor:pointer;}
@@ -22,10 +25,38 @@
     color: #000;
     text-shadow: 0 0 2px #fff, 0 0 4px #fff;
   }
+  .coords {
+    position: absolute;
+    bottom: 5px;
+    left: 10px;
+    background: rgba(255,255,255,0.9);
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-family: monospace;
+    z-index: 1000;
+  }
+  #search-box {
+    position: absolute;
+    top: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1500;
+    width: 300px;
+  }
+  #search-input {
+    width: 100%;
+    padding: 6px 10px;
+    border-radius: 5px;
+    border: 1px solid #999;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+  }
 </style>
 </head>
 <body>
+<div id="search-box"><input id="search-input" type="text" placeholder="🔍 Nhập địa chỉ hoặc tên phường..."></div>
 <div id="map"></div>
+<div id="coords" class="coords">Lat: --, Lng: --</div>
 
 <!-- JS -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -38,40 +69,24 @@
 window.onload = function() {
   const map = L.map('map', {center: [10.776,106.7], zoom: 12});
 
-  // --- Lớp nền an toàn ---
+  // --- Lớp nền ---
   const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {attribution:'© OpenStreetMap'}).addTo(map);
-  const esriStreet = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {attribution:'© Esri'});
   const esriImagery = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {attribution:'© Esri'});
-  const bing = L.tileLayer('https://ecn.t{s}.tiles.virtualearth.net/tiles/a{q}.jpeg?g=1&key=1&key=e18625f53fd5484c93b09c24ff459087', {
-    subdomains:['t0','t1','t2','t3'], attribution:'© Bing Maps'
-  });
-  // Google map (qua tile API hợp lệ)
-  const googleStreet = L.tileLayer('https://mts1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}&key=AIzaSyARhMzsywQPyQbrbgS6aFVb5sg7eSV34oA', {attribution:'© Google'});
   const googleHybrid = L.tileLayer('https://mts1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}&key=AIzaSyARhMzsywQPyQbrbgS6aFVb5sg7eSV34oA', {attribution:'© Google'});
-  const googleSat = L.tileLayer('https://mts1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}&key=AIzaSyARhMzsywQPyQbrbgS6aFVb5sg7eSV34oA', {attribution:'© Google'});
 
-  const baseMaps = {
-    "🗺️ OpenStreetMap": osm,
-    "🧭 Esri Streets": esriStreet,
-    "🛰️ Esri Imagery": esriImagery,
-    "🌤️ Google Street": googleStreet,
-    "🌍 Google Hybrid": googleHybrid,
-    "🌌 Google Satellite": googleSat,
-    "☁️ Bing Aerial": bing
-  };
+  const baseMaps = {"🌍 OSM": osm, "🛰️ Esri Imagery": esriImagery, "🌤️ Google Hybrid": googleHybrid};
 
-  const phuongXaGroup = L.layerGroup();
-  const quanHuyenGroup = L.layerGroup();
-  const labelGroup = L.layerGroup();
+  const phuongXaGroup = L.layerGroup(), quanHuyenGroup = L.layerGroup(), labelGroup = L.layerGroup();
+  let colored = [];
+  let measureCtrl, compassCtrl;
 
-  // --- Nạp dữ liệu ---
+  // --- Nạp GeoJSON ---
   async function loadHCM() {
     const res = await fetch('assets/TPHCM.geojson');
     const data = await res.json();
     const searchList = [];
 
-    // Phường/Xã
-    const phuongXaLayer = L.geoJSON(data, {
+    const layer = L.geoJSON(data, {
       style: { color: "#ff6600", weight: 1, fillOpacity: 0.1 },
       onEachFeature: (f, l) => {
         const p = f.properties || {};
@@ -81,125 +96,106 @@ window.onload = function() {
         const ds = p.dan_so ? p.dan_so.toLocaleString() + " người" : '-';
         const sap = p.sap_nhap ? `<br><i>${p.sap_nhap}</i>` : '';
         l.bindPopup(`<b>${ten}</b><br>${quan}<br>${dt}<br>${ds}${sap}`);
-        l.on('click', () => highlight(l));
+        l.on('click', () => highlight(f, l));
         searchList.push({ name: `${ten} - ${quan}`, layer: l });
       }
     }).addTo(phuongXaGroup);
 
-    // Quận/Huyện
-    const districts = {};
-    data.features.forEach(f => {
-      const p = f.properties || {};
-      if (!districts[p.quan_huyen]) districts[p.quan_huyen] = [];
-      if (f.geometry) districts[p.quan_huyen].push(f.geometry);
-    });
-
-    Object.keys(districts).forEach(q => {
-      const feature = { type: "FeatureCollection", features: districts[q].map(g => ({type:"Feature", geometry:g})) };
-      L.geoJSON(feature, {
-        style: { color: "#660099", weight: 3, fillOpacity: 0 },
-        onEachFeature: (f,l) => l.bindTooltip(`<b>${q}</b>`, {permanent:false})
-      }).addTo(quanHuyenGroup);
-    });
-
-    // Nhãn
-    data.features.forEach(f => {
-      const p = f.properties || {};
-      if (f.geometry && (f.geometry.type === "Polygon" || f.geometry.type === "MultiPolygon")) {
-        const center = getCenter(f);
-        if (center) {
-          const label = L.marker(center, {
-            icon: L.divIcon({ className: "label-text", html: p.ten_xa || "" })
-          });
-          labelGroup.addLayer(label);
-        }
-      }
-    });
-
-    // Tìm kiếm nội bộ
     addSearchControl(searchList);
-
     phuongXaGroup.addTo(map);
   }
 
-  function getCenter(feature) {
-    try {
-      const coords = (feature.geometry.type === "Polygon")
-        ? feature.geometry.coordinates[0]
-        : feature.geometry.coordinates[0][0];
-      let lat = 0, lng = 0;
-      coords.forEach(c => { lng += c[0]; lat += c[1]; });
-      return [lat/coords.length, lng/coords.length];
-    } catch { return null; }
-  }
-
-  // --- Tô màu ---
-  const colored = [];
-  function highlight(layer){
+  // --- Tô màu vùng ---
+  function highlight(feature, layer){
     const colors = ["#FFD700","#FFA500","#1E90FF","#32CD32","#FF69B4"];
     const c = colors[Math.floor(Math.random()*colors.length)];
     layer.setStyle({ fillColor:c, fillOpacity:0.5 });
-    colored.push(layer);
+    colored.push({ feature: feature, layer: layer });
   }
   function clearColors(){
-    colored.forEach(l => l.setStyle({ fillOpacity:0.1, fillColor:null }));
-    colored.length = 0;
+    colored.forEach(obj => obj.layer.setStyle({ fillOpacity:0.1, fillColor:null }));
+    colored = [];
+  }
+  function exportGeoJSON(){
+    if(colored.length === 0){ alert("Chưa có vùng nào được tô màu!"); return; }
+    const geojson = { type: "FeatureCollection", features: colored.map(o => o.feature) };
+    const blob = new Blob([JSON.stringify(geojson, null, 2)], {type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = 'to_mau.geojson'; a.click();
+    URL.revokeObjectURL(url);
   }
 
-  // --- Công cụ bản đồ ---
-  L.control.scale().addTo(map);
-  L.control.locate({strings:{title:"Định vị GPS"}}).addTo(map);
-  L.control.measure({ primaryLengthUnit:'meters', secondaryLengthUnit:'kilometers', primaryAreaUnit:'sqmeters' }).addTo(map);
-  L.control.compass({autoActive:true, showDigit:true, position:'topright'}).addTo(map);
-
-  // --- Layer control ---
-  const overlayMaps = {
-    "🗺️ Địa giới phường/xã": phuongXaGroup,
-    "🏙️ Ranh giới quận/huyện": quanHuyenGroup,
-    "🔤 Tên địa danh": labelGroup
-  };
-  L.control.layers(baseMaps, overlayMaps).addTo(map);
-
-  // --- Nút xóa tô màu ---
-  const panel = L.control({position:'topright'});
-  panel.onAdd = function(){
-    const div = L.DomUtil.create('div','leaflet-bar');
-    div.innerHTML = `<button onclick="window._clearColors()">🎨 Xóa tô màu</button>`;
-    return div;
-  };
-  panel.addTo(map);
-  window._clearColors = clearColors;
-
-  // --- Tự động đổi nền ---
-  map.on('zoomend', function() {
-    if (map.getZoom() > 14) {
-      if (!map.hasLayer(esriImagery)) map.addLayer(esriImagery);
-    } else {
-      if (map.hasLayer(esriImagery)) map.removeLayer(esriImagery);
-    }
-  });
-
-  // --- Tìm kiếm địa danh ---
+  // --- Tìm kiếm phường/xã ---
   function addSearchControl(list){
     const geocoder = L.Control.geocoder({
       defaultMarkGeocode: false,
       placeholder: '🔍 Tìm phường/xã hoặc quận...',
-      errorMessage: 'Không tìm thấy',
     }).addTo(map);
-
     const input = geocoder._input;
     input.addEventListener('input', function(){
-      const keyword = this.value.toLowerCase();
-      const match = list.find(i => i.name.toLowerCase().includes(keyword));
-      if(match) {
-        const bounds = match.layer.getBounds();
-        map.fitBounds(bounds);
-        match.layer.openPopup();
-      }
+      const kw = this.value.toLowerCase();
+      const match = list.find(i => i.name.toLowerCase().includes(kw));
+      if(match){ const b = match.layer.getBounds(); map.fitBounds(b); match.layer.openPopup(); }
     });
   }
 
-  // --- Load ---
+  // --- Autocomplete địa chỉ ---
+  const input = document.getElementById('search-input');
+  const autocomplete = new google.maps.places.Autocomplete(input, {
+    componentRestrictions: { country: "vn" },
+    fields: ["geometry", "name"]
+  });
+  autocomplete.addListener("place_changed", () => {
+    const place = autocomplete.getPlace();
+    if (!place.geometry) return;
+    const loc = place.geometry.location;
+    map.setView([loc.lat(), loc.lng()], 17);
+    L.marker([loc.lat(), loc.lng()]).addTo(map)
+      .bindPopup(`<b>${place.name}</b>`).openPopup();
+  });
+
+  // --- Tọa độ chuột ---
+  const coordsDiv = document.getElementById('coords');
+  map.on('mousemove', e => coordsDiv.innerHTML = `Lat: ${e.latlng.lat.toFixed(5)}, Lng: ${e.latlng.lng.toFixed(5)}`);
+
+  // --- Công cụ cơ bản ---
+  L.control.scale().addTo(map);
+  L.control.locate({strings:{title:"Định vị GPS"}}).addTo(map);
+
+  // --- Bật tắt công cụ ---
+  function toggleTools(){
+    if(measureCtrl){ map.removeControl(measureCtrl); map.removeControl(compassCtrl); measureCtrl = null; compassCtrl = null; }
+    else {
+      measureCtrl = L.control.measure({ primaryLengthUnit:'meters', secondaryLengthUnit:'kilometers', primaryAreaUnit:'sqmeters' }).addTo(map);
+      compassCtrl = L.control.compass({autoActive:true, showDigit:true, position:'topright'}).addTo(map);
+    }
+  }
+
+  // --- Layer control ---
+  L.control.layers(baseMaps, {"🗺️ Phường/Xã": phuongXaGroup}).addTo(map);
+
+  // --- Thanh công cụ ---
+  const panel = L.control({position:'topright'});
+  panel.onAdd = function(){
+    const div = L.DomUtil.create('div','leaflet-bar');
+    div.innerHTML = `
+      <button onclick="window._clearColors()">🎨 Xóa tô màu</button>
+      <button onclick="window._exportGeoJSON()">💾 Xuất GeoJSON</button>
+      <button onclick="window._toggleTools()">🔧 Công cụ</button>
+    `;
+    return div;
+  };
+  panel.addTo(map);
+  window._clearColors = clearColors;
+  window._exportGeoJSON = exportGeoJSON;
+  window._toggleTools = toggleTools;
+
+  // --- Auto ảnh vệ tinh ---
+  map.on('zoomend', () => {
+    if (map.getZoom() > 14 && !map.hasLayer(esriImagery)) map.addLayer(esriImagery);
+    else if (map.getZoom() <= 14 && map.hasLayer(esriImagery)) map.removeLayer(esriImagery);
+  });
+
   loadHCM();
 };
 </script>
