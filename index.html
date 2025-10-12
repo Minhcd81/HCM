@@ -2,7 +2,7 @@
 <html lang="vi">
 <head>
 <meta charset="utf-8" />
-<title>HCM WebGIS – Bản đồ hành chính + Nhãn địa danh</title>
+<title>HCM WebGIS – Địa giới phường xã & quận huyện</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <!-- Leaflet CSS -->
@@ -50,32 +50,50 @@ window.onload = function() {
     "🌤️ Bing Aerial": bing
   };
 
-  // --- Lớp hành chính ---
-  let hcmLayer, labelLayer;
-  const hanhChinhGroup = L.layerGroup();
+  // --- Các nhóm lớp ---
+  const phuongXaGroup = L.layerGroup();
+  const quanHuyenGroup = L.layerGroup();
   const labelGroup = L.layerGroup();
+
+  let phuongXaLayer, quanHuyenLayer;
 
   // --- Hàm nạp địa giới ---
   async function loadHCM() {
     try {
       const res = await fetch('assets/TPHCM.geojson');
       const data = await res.json();
-      if (hcmLayer) hanhChinhGroup.removeLayer(hcmLayer);
-      if (labelLayer) labelGroup.clearLayers();
 
-      hcmLayer = L.geoJSON(data, {
-        style: { color: "#ff0000", weight: 1, fillOpacity: 0.1 },
+      // --- Phường/Xã ---
+      phuongXaLayer = L.geoJSON(data, {
+        style: { color: "#ff6600", weight: 1, fillOpacity: 0.1 },
         onEachFeature: (f, l) => {
           const p = f.properties || {};
           l.bindPopup(`<b>${p.ten_xa || ''}</b><br>${p.quan_huyen || ''}<br>${p.dtich_km2 || ''} km²<br>${p.dan_so || ''} người`);
           l.on('click', () => highlight(l));
         }
-      }).addTo(hanhChinhGroup);
+      }).addTo(phuongXaGroup);
+
+      // --- Tạo ranh giới quận ---
+      const districts = {};
+      data.features.forEach(f => {
+        const p = f.properties || {};
+        if (!districts[p.quan_huyen]) districts[p.quan_huyen] = [];
+        if (f.geometry) districts[p.quan_huyen].push(f.geometry);
+      });
+
+      // --- Gộp các vùng theo quận ---
+      Object.keys(districts).forEach(q => {
+        const feature = { type: "FeatureCollection", features: districts[q].map(g => ({type:"Feature", geometry:g})) };
+        L.geoJSON(feature, {
+          style: { color: "#660099", weight: 3, fillOpacity: 0 },
+          onEachFeature: (f,l) => l.bindTooltip(`<b>${q}</b>`, {permanent:false})
+        }).addTo(quanHuyenGroup);
+      });
 
       // --- Tạo nhãn địa danh ---
       data.features.forEach(f => {
         const p = f.properties || {};
-        if (f.geometry && f.geometry.type === "Polygon" || f.geometry.type === "MultiPolygon") {
+        if (f.geometry && (f.geometry.type === "Polygon" || f.geometry.type === "MultiPolygon")) {
           const center = getCenter(f);
           if (center) {
             const label = L.marker(center, {
@@ -89,15 +107,15 @@ window.onload = function() {
         }
       });
 
-      hanhChinhGroup.addTo(map);
-      console.log("✅ Đã tải địa giới hành chính + nhãn địa danh!");
+      console.log("✅ Đã tải bản đồ hành chính, nhãn và ranh giới quận huyện");
+      phuongXaGroup.addTo(map);
     } catch(e) {
       alert("❌ Không thể tải file 'assets/TPHCM.geojson'");
       console.error(e);
     }
   }
 
-  // --- Hàm tính trung tâm vùng ---
+  // --- Tính trung tâm vùng ---
   function getCenter(feature) {
     try {
       const coords = (feature.geometry.type === "Polygon")
@@ -107,9 +125,7 @@ window.onload = function() {
       coords.forEach(c => { lng += c[0]; lat += c[1]; });
       const n = coords.length;
       return [lat/n, lng/n];
-    } catch {
-      return null;
-    }
+    } catch { return null; }
   }
 
   // --- Tô màu ---
@@ -125,14 +141,20 @@ window.onload = function() {
     colored.length = 0;
   }
 
-  // --- Công cụ bản đồ ---
+  // --- Công cụ ---
   L.control.scale().addTo(map);
   L.control.locate({strings:{title:"Định vị GPS"}}).addTo(map);
-  L.control.measureControl({ position: 'topleft', primaryLengthUnit: 'meters', primaryAreaUnit: 'sqmeters' }).addTo(map);
+  new L.Control.Measure({
+    position: 'topleft',
+    primaryLengthUnit: 'meters',
+    secondaryLengthUnit: 'kilometers',
+    primaryAreaUnit: 'sqmeters'
+  }).addTo(map);
 
   // --- Layer control ---
   const overlayMaps = {
-    "🗺️ Bản đồ hành chính": hanhChinhGroup,
+    "🗺️ Địa giới phường/xã": phuongXaGroup,
+    "🏙️ Ranh giới quận/huyện": quanHuyenGroup,
     "🔤 Tên địa danh": labelGroup
   };
   L.control.layers(baseMaps, overlayMaps).addTo(map);
@@ -142,7 +164,7 @@ window.onload = function() {
   panel.onAdd = function(){
     const div = L.DomUtil.create('div','leaflet-bar');
     div.innerHTML = `
-      <button onclick="window._hideHCM()">Ẩn địa giới</button>
+      <button onclick="window._hidePhuongXa()">Ẩn phường/xã</button>
       <button onclick="window._clearColors()">🎨 Xóa tô màu</button>
     `;
     return div;
@@ -150,10 +172,10 @@ window.onload = function() {
   panel.addTo(map);
 
   // --- Cho phép gọi từ ngoài ---
-  window._hideHCM = () => { if (hcmLayer) hanhChinhGroup.removeLayer(hcmLayer); };
+  window._hidePhuongXa = () => { phuongXaGroup.clearLayers(); };
   window._clearColors = clearColors;
 
-  // --- Tự động nạp địa giới khi mở trang ---
+  // --- Tự động nạp khi mở ---
   loadHCM();
 };
 </script>
