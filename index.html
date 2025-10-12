@@ -3,17 +3,19 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Bản đồ địa giới TP.HCM - WebGIS nâng cấp</title>
+<title>Bản đồ địa giới TP.HCM - WebGIS Biên tập (Fix)</title>
 
 <!-- 🗺️ Leaflet core -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-<!-- Google Maps API -->
-<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyARhMzsywQPyQbrbgS6aFVb5sg7eSV34oA&libraries=places"></script>
+<!-- ✅ Google Maps API (async & defer) -->
+<script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyARhMzsywQPyQbrbgS6aFVb5sg7eSV34oA&libraries=places"></script>
+
+<!-- ✅ GoogleMutant (đã sửa link ổn định cho GitHub Pages) -->
+<script src="https://cdn.jsdelivr.net/npm/leaflet.gridlayer.googlemutant@0.13.6/dist/Leaflet.GoogleMutant.min.js"></script>
 
 <!-- 🧩 Plugin Leaflet -->
-<script src="https://unpkg.com/leaflet.gridlayer.googlemutant@0.13.6/dist/Leaflet.GoogleMutant.js"></script>
 <link rel="stylesheet" href="https://unpkg.com/leaflet.locatecontrol@0.79.0/dist/L.Control.Locate.min.css"/>
 <script src="https://unpkg.com/leaflet.locatecontrol@0.79.0/dist/L.Control.Locate.min.js"></script>
 <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css"/>
@@ -36,18 +38,12 @@
 <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
 
 <style>
-  html, body, #map {
-    height: 100%;
-    margin: 0;
-    font-family: "Segoe UI", Arial, sans-serif;
-  }
+  html, body, #map { height: 100%; margin: 0; font-family: "Segoe UI", Arial, sans-serif; }
   .legend {
     position:absolute; bottom:10px; left:10px;
     background:rgba(255,255,255,0.9);
-    padding:8px 12px;
-    border-radius:8px;
-    box-shadow:0 2px 6px rgba(0,0,0,0.2);
-    font-size:13px;
+    padding:8px 12px; border-radius:8px;
+    box-shadow:0 2px 6px rgba(0,0,0,0.2); font-size:13px;
   }
   .leaflet-popup-content { font-size: 14px; line-height: 1.4; }
 </style>
@@ -59,12 +55,13 @@
 // ===== 1️⃣ Khởi tạo bản đồ =====
 const map = L.map("map", { center: [10.77, 106.7], zoom: 11 });
 
-// Google base maps
+// ---- Google base maps ----
 const roadmap = L.gridLayer.googleMutant({ type: "roadmap" });
 const satellite = L.gridLayer.googleMutant({ type: "satellite" });
 const hybrid = L.gridLayer.googleMutant({ type: "hybrid" });
 roadmap.addTo(map);
 
+// ---- Base map control ----
 const baseMaps = {
   "Google Đường phố": roadmap,
   "Google Vệ tinh": satellite,
@@ -88,63 +85,76 @@ new L.Control.Draw({
 map.on(L.Draw.Event.CREATED, e => drawnItems.addLayer(e.layer));
 
 // In bản đồ
-L.easyPrint({ title: "In bản đồ", position: "topleft", sizeModes: ["A4Portrait","A4Landscape"], filename: "ban_do_HCM" }).addTo(map);
+L.easyPrint({
+  title: "In bản đồ",
+  position: "topleft",
+  sizeModes: ["A4Portrait","A4Landscape"],
+  filename: "ban_do_HCM"
+}).addTo(map);
 
 // ===== 4️⃣ Tải shapefile địa giới =====
 let currentLayer = null;
-function styleDefault() {
-  return { color: "#2262CC", weight: 1.2, fillOpacity: 0.05 };
-}
-function styleHighlight() {
-  return { color: "#0B5ED7", weight: 3, fillColor: "#FFD43B", fillOpacity: 0.5 };
-}
+function styleDefault() { return { color: "#2262CC", weight: 1.2, fillOpacity: 0.05 }; }
+function styleHighlight() { return { color: "#0B5ED7", weight: 3, fillColor: "#FFD43B", fillOpacity: 0.5 }; }
 function popupContent(p) {
   const dan_so = p.dan_so ? p.dan_so.toLocaleString("vi-VN") : "–";
   const matdo = p.matdo_km2 ? p.matdo_km2.toLocaleString("vi-VN") : "–";
   const dtich = p.dtich_km2 || "–";
-  return `
-    <b>${p.loai || ""} ${p.ten_xa || ""}</b><br>
-    Tỉnh/TP: ${p.ten_tinh || "TP. Hồ Chí Minh"}<br>
-    Dân số: ${dan_so} người<br>
-    Diện tích: ${dtich} km²<br>
-    Mật độ: ${matdo} người/km²<br>
-    Trụ sở: ${p.tru_so || "–"}<br>
-    Mã hành chính: ${p.ma_xa || "–"}
-  `;
+  return `<b>${p.loai || ""} ${p.ten_xa || ""}</b><br>
+          Tỉnh/TP: ${p.ten_tinh || "TP. Hồ Chí Minh"}<br>
+          Dân số: ${dan_so} người<br>
+          Diện tích: ${dtich} km²<br>
+          Mật độ: ${matdo} người/km²<br>
+          Trụ sở: ${p.tru_so || "–"}<br>
+          Mã hành chính: ${p.ma_xa || "–"}`;
 }
 
 (async function() {
   const url = "assets/hcm_admin_shp.zip";
   const geojson = await shp(url);
-
   const geoLayer = L.geoJSON(geojson, {
     style: styleDefault,
-    onEachFeature: function(feat, layer) {
-      const p = feat.properties;
-      const centroid = turf.centroid(feat).geometry.coordinates;
-      layer.on("click", function() {
+    onEachFeature: (f, l) => {
+      const p = f.properties;
+      const centroid = turf.centroid(f).geometry.coordinates;
+      l.on("click", () => {
         if (currentLayer) geoLayer.resetStyle(currentLayer);
-        currentLayer = layer;
-        layer.setStyle(styleHighlight());
-        const latlng = [centroid[1], centroid[0]];
+        currentLayer = l;
+        l.setStyle(styleHighlight());
         L.popup({ maxWidth: 300 })
-          .setLatLng(latlng)
+          .setLatLng([centroid[1], centroid[0]])
           .setContent(popupContent(p))
           .openOn(map);
       });
-      layer.bindTooltip(`${p.loai || ""} ${p.ten_xa || ""}`, { permanent: false });
+      l.bindTooltip(`${p.loai || ""} ${p.ten_xa || ""}`, { permanent: false });
     }
   }).addTo(map);
   map.fitBounds(geoLayer.getBounds());
 })();
 
-// ===== 5️⃣ Legend =====
+// ===== 5️⃣ Nút tải GeoJSON và Xóa tất cả =====
+L.easyButton('💾', function() {
+  const data = drawnItems.toGeoJSON();
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "drawn_features.geojson";
+  a.click();
+}, 'Tải GeoJSON đã vẽ').addTo(map);
+
+L.easyButton('🗑️', function() {
+  drawnItems.clearLayers();
+  alert("Đã xóa toàn bộ đối tượng đã vẽ!");
+}, 'Xóa tất cả đối tượng đã vẽ').addTo(map);
+
+// ===== 6️⃣ Legend =====
 L.control({ position: "bottomleft" }).onAdd = function() {
   const div = L.DomUtil.create("div", "legend");
   div.innerHTML = `
     <b>Chú giải</b><br>
     <span style="display:inline-block;width:14px;height:14px;background:#2262CC;border:1px solid #2262CC;margin-right:4px"></span> Địa giới hành chính<br>
-    <span style="display:inline-block;width:14px;height:14px;background:#FFD43B;border:1px solid #0B5ED7;margin-right:4px"></span> Khu vực được chọn
+    <span style="display:inline-block;width:14px;height:14px;background:#FFD43B;border:1px solid #0B5ED7;margin-right:4px"></span> Khi chọn<br>
+    <b>Công cụ:</b> Vẽ, đo, in, tải GeoJSON, xóa đối tượng
   `;
   return div;
 }.addTo(map);
