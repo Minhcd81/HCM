@@ -3,19 +3,19 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Bản đồ TP.HCM - Fix GoogleMutant</title>
+<title>Bản đồ TP.HCM - Final Fix (GoogleMutant + EasyPrint)</title>
 
 <!-- 🗺️ Leaflet core -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-<!-- ✅ Google Maps API (load trước, không async/defer để đảm bảo thứ tự) -->
+<!-- ✅ Google Maps API -->
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyARhMzsywQPyQbrbgS6aFVb5sg7eSV34oA&libraries=places"></script>
 
-<!-- ✅ Bản ổn định Leaflet.GoogleMutant (có CORS và integrity) -->
-<script src="https://cdn.jsdelivr.net/gh/IvanSanchez/Leaflet.GridLayer.GoogleMutant@master/Leaflet.GoogleMutant.js" crossorigin="anonymous"></script>
+<!-- ✅ Leaflet.GoogleMutant (đường dẫn ổn định, không lỗi 404) -->
+<script src="https://cdn.jsdelivr.net/npm/leaflet.gridlayer.googlemutant@0.12.0/Leaflet.GoogleMutant.min.js"></script>
 
-<!-- 🧩 Các plugin Leaflet -->
+<!-- 🧩 Plugins khác -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet.locatecontrol@0.79.0/dist/L.Control.Locate.min.css"/>
 <script src="https://unpkg.com/leaflet.locatecontrol@0.79.0/dist/L.Control.Locate.min.js"></script>
 
@@ -31,7 +31,9 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet-easybutton@2.4.0/src/easy-button.css"/>
 <script src="https://unpkg.com/leaflet-easybutton@2.4.0/src/easy-button.js"></script>
 
-<script src="https://unpkg.com/leaflet-easyprint@2.1.9/dist/bundle.min.js"></script>
+<!-- ✅ EasyPrint bản hoạt động -->
+<script src="https://cdn.jsdelivr.net/npm/leaflet-easyprint@2.1.9/dist/leaflet.easyPrint.js"></script>
+
 <script src="https://unpkg.com/shpjs@latest/dist/shp.min.js"></script>
 <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
 
@@ -41,7 +43,7 @@
     position: absolute;
     bottom: 10px;
     left: 10px;
-    background: rgba(255, 255, 255, 0.9);
+    background: rgba(255,255,255,0.9);
     padding: 8px 12px;
     border-radius: 8px;
     box-shadow: 0 2px 6px rgba(0,0,0,0.2);
@@ -134,7 +136,7 @@ function popupContent(p) {
   }
 })();
 
-// ===== 5️⃣ Nút tiện ích =====
+// ===== 5️⃣ Nút tải GeoJSON và Xóa =====
 L.easyButton("💾", () => {
   const data = drawnItems.toGeoJSON();
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
