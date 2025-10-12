@@ -2,7 +2,7 @@
 <html lang="vi">
 <head>
 <meta charset="utf-8" />
-<title>HCM WebGIS – Full Version (Google + Bing + Esri + GeoJSON)</title>
+<title>HCM WebGIS – Full Fixed (Google + Bing + Esri + GeoJSON)</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <!-- CSS -->
@@ -26,108 +26,127 @@
 <script src="https://unpkg.com/leaflet-measure@3.1.0/dist/leaflet-measure.min.js"></script>
 <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
 <script src="https://unpkg.com/leaflet.locatecontrol/dist/L.Control.Locate.min.js"></script>
+
+<!-- GOOGLE MAPS + FALLBACK LOAD -->
 <script async src="https://maps.googleapis.com/maps/api/js?key=AIzaSyARhMzsywQPyQbrbgS6aFVb5sg7eSV34oA&libraries=places"></script>
-<script src="https://unpkg.com/leaflet.gridlayer.googlemutant@0.13.6/dist/Leaflet.GoogleMutant.min.js"></script>
+<script>
+(async ()=>{
+  try {
+    await import("https://unpkg.com/leaflet.gridlayer.googlemutant@0.13.6/dist/Leaflet.GoogleMutant.min.js");
+  } catch(e) {
+    console.warn("⚠️ GoogleMutant CDN lỗi, đang tải lại từ JSDelivr...");
+    let t = await fetch("https://cdn.jsdelivr.net/gh/IvanSanchez/Leaflet.GridLayer.GoogleMutant@master/dist/Leaflet.GoogleMutant.js");
+    let code = await t.text(); eval(code);
+  }
+})();
+</script>
 
 <script>
-let map = L.map('map', {center:[10.776,106.7], zoom:12});
+window.onload = function(){
+  let map = L.map('map', {center:[10.776,106.7], zoom:12});
 
-// ====== GOOGLE MAP LAYERS ======
-let gRoad = L.gridLayer.googleMutant({type:'roadmap'});
-let gSat  = L.gridLayer.googleMutant({type:'satellite'});
-let gHy   = L.gridLayer.googleMutant({type:'hybrid'});
+  // GOOGLE MAP LAYERS
+  let gRoad = L.gridLayer.googleMutant({type:'roadmap'});
+  let gSat  = L.gridLayer.googleMutant({type:'satellite'});
+  let gHy   = L.gridLayer.googleMutant({type:'hybrid'});
 
-// ====== OTHER MAPS ======
-let osm  = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {attribution:'© OpenStreetMap'});
-let esriStreet = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {attribution:'Esri'});
-let esriImg    = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {attribution:'Esri'});
+  // OTHER MAPS
+  let osm  = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {attribution:'© OpenStreetMap'});
+  let esriStreet = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {attribution:'Esri'});
+  let esriImg    = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {attribution:'Esri'});
 
-// ====== BING MAP (THAY KEY) ======
-let bingKey = "YOUR_BING_API_KEY";
-let bingAerial = L.tileLayer(`https://ecn.t{s}.tiles.virtualearth.net/tiles/a{q}.jpeg?g=1&key=${bingKey}`, {
-  subdomains:['t0','t1','t2','t3'],
-  attribution:'© Microsoft Bing'
-});
+  // BING MAP
+  let bingKey = "YOUR_BING_API_KEY";
+  let bingAerial = L.tileLayer(`https://ecn.t{s}.tiles.virtualearth.net/tiles/a{q}.jpeg?g=1&key=${bingKey}`, {
+    subdomains:['t0','t1','t2','t3'],
+    attribution:'© Microsoft Bing'
+  });
 
-osm.addTo(map);
+  osm.addTo(map);
 
-// ====== BASEMAP CONTROL ======
-let baseMaps = {
-  "🗺️ Google Street": gRoad,
-  "🌏 Google Hybrid": gHy,
-  "🛰️ Google Satellite": gSat,
-  "🗺️ OpenStreetMap": osm,
-  "🗺️ Esri Streets": esriStreet,
-  "🛰️ Esri Imagery": esriImg,
-  "🛰️ Bing Aerial": bingAerial
-};
-L.control.layers(baseMaps, {}).addTo(map);
+  // BASEMAP CONTROL
+  let baseMaps = {
+    "🗺️ Google Street": gRoad,
+    "🌏 Google Hybrid": gHy,
+    "🛰️ Google Satellite": gSat,
+    "🗺️ OpenStreetMap": osm,
+    "🗺️ Esri Streets": esriStreet,
+    "🛰️ Esri Imagery": esriImg,
+    "🛰️ Bing Aerial": bingAerial
+  };
+  L.control.layers(baseMaps, {}).addTo(map);
 
-// ====== TOOLBAR ======
-L.control.scale().addTo(map);
-L.control.locate({strings:{title:"Định vị GPS"}, position:"topleft"}).addTo(map);
-L.control.measure({position:'topleft', primaryLengthUnit:'meters', primaryAreaUnit:'sqmeters'}).addTo(map);
+  // TOOLBAR
+  L.control.scale().addTo(map);
+  L.control.locate({strings:{title:"Định vị GPS"}, position:"topleft"}).addTo(map);
+  L.control.measure({position:'topleft', primaryLengthUnit:'meters', primaryAreaUnit:'sqmeters'}).addTo(map);
 
-// ====== GEOJSON LAYER ======
-let hcmLayer, colored = [];
+  // GEOJSON LAYER
+  let hcmLayer, colored = [];
 
-async function loadHCM(){
-  const res = await fetch('assets/TPHCM.geojson');
-  const data = await res.json();
-  if(hcmLayer) map.removeLayer(hcmLayer);
+  async function loadHCM(){
+    try{
+      const res = await fetch('assets/TPHCM.geojson');
+      const data = await res.json();
+      if(hcmLayer) map.removeLayer(hcmLayer);
 
-  hcmLayer = L.geoJSON(data,{
-    style:{color:"#ff0000",weight:1,fillOpacity:0.1},
-    onEachFeature:(f,l)=>{
-      const p=f.properties;
-      l.bindPopup(`<b>${p.ten_xa}</b><br>${p.quan_huyen||''}<br>${p.dtich_km2||''} km²<br>${p.dan_so||''} người`);
-      l.on('click',()=>highlight(l));
+      hcmLayer = L.geoJSON(data,{
+        style:{color:"#ff0000",weight:1,fillOpacity:0.1},
+        onEachFeature:(f,l)=>{
+          const p=f.properties;
+          l.bindPopup(`<b>${p.ten_xa}</b><br>${p.quan_huyen||''}<br>${p.dtich_km2||''} km²<br>${p.dan_so||''} người`);
+          l.on('click',()=>highlight(l));
+        }
+      }).addTo(map);
+    }catch(e){
+      alert("Không thể tải file địa giới hành chính. Kiểm tra lại assets/TPHCM.geojson hoặc thử reload trang.");
+      console.error(e);
     }
-  }).addTo(map);
-}
-
-function highlight(layer){
-  const colors=["#FFD700","#FFA500","#1E90FF"];
-  const c=colors[Math.floor(Math.random()*colors.length)];
-  layer.setStyle({fillColor:c,fillOpacity:0.5});
-  colored.push(layer);
-}
-
-function clearColors(){
-  colored.forEach(l=>l.setStyle({fillOpacity:0.1,fillColor:null}));
-  colored=[];
-}
-
-// ====== CONTROL PANEL ======
-let panel = L.control({position:'topright'});
-panel.onAdd=function(){
-  let div=L.DomUtil.create('div','leaflet-bar');
-  div.innerHTML=`
-    <button onclick="loadHCM()">🗺️ Nạp địa giới</button>
-    <button onclick="if(hcmLayer){map.removeLayer(hcmLayer)}">Ẩn địa giới</button>
-    <button onclick="clearColors()">🎨 Xóa tô màu</button>
-  `;
-  return div;
-};
-panel.addTo(map);
-
-// ====== SEARCH BOX ======
-let input=L.DomUtil.create('input','search-box');
-input.placeholder="🔍 Nhập địa chỉ (VD: 961 Hoàng Sa, Quận 3)";
-document.body.appendChild(input);
-
-setTimeout(()=>{
-  if(window.google&&google.maps.places){
-    const ac=new google.maps.places.Autocomplete(input);
-    ac.addListener('place_changed',()=>{
-      const pl=ac.getPlace();
-      if(!pl.geometry) return;
-      const lat=pl.geometry.location.lat(), lng=pl.geometry.location.lng();
-      map.setView([lat,lng],17);
-      L.marker([lat,lng]).addTo(map).bindPopup(pl.formatted_address).openPopup();
-    });
   }
-},2000);
+
+  function highlight(layer){
+    const colors=["#FFD700","#FFA500","#1E90FF"];
+    const c=colors[Math.floor(Math.random()*colors.length)];
+    layer.setStyle({fillColor:c,fillOpacity:0.5});
+    colored.push(layer);
+  }
+
+  function clearColors(){
+    colored.forEach(l=>l.setStyle({fillOpacity:0.1,fillColor:null}));
+    colored=[];
+  }
+
+  // CONTROL PANEL
+  let panel = L.control({position:'topright'});
+  panel.onAdd=function(){
+    let div=L.DomUtil.create('div','leaflet-bar');
+    div.innerHTML=`
+      <button onclick="loadHCM()">🗺️ Nạp địa giới</button>
+      <button onclick="if(hcmLayer){map.removeLayer(hcmLayer)}">Ẩn địa giới</button>
+      <button onclick="clearColors()">🎨 Xóa tô màu</button>
+    `;
+    return div;
+  };
+  panel.addTo(map);
+
+  // SEARCH BOX
+  let input=L.DomUtil.create('input','search-box');
+  input.placeholder="🔍 Nhập địa chỉ (VD: 961 Hoàng Sa, Quận 3)";
+  document.body.appendChild(input);
+
+  setTimeout(()=>{
+    if(window.google&&google.maps.places){
+      const ac=new google.maps.places.Autocomplete(input);
+      ac.addListener('place_changed',()=>{
+        const pl=ac.getPlace();
+        if(!pl.geometry) return;
+        const lat=pl.geometry.location.lat(), lng=pl.geometry.location.lng();
+        map.setView([lat,lng],17);
+        L.marker([lat,lng]).addTo(map).bindPopup(pl.formatted_address).openPopup();
+      });
+    }
+  },2000);
+};
 </script>
 </body>
 </html>
