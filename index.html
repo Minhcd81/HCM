@@ -5,10 +5,10 @@
 <title>HCM WebGIS – Bản đồ hành chính + OSM/Esri/Bing</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<!-- CSS -->
+<!-- Leaflet CSS -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-<link rel="stylesheet" href="https://unpkg.com/leaflet-measure@3.1.0/dist/leaflet-measure.css"/>
 <link rel="stylesheet" href="https://unpkg.com/leaflet.locatecontrol/dist/L.Control.Locate.min.css"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet-measure-control@1.1.0/dist/leaflet-measure-control.css"/>
 
 <style>
   html, body, #map {height:100%; margin:0; padding:0;}
@@ -21,19 +21,21 @@
 
 <!-- JS -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="https://unpkg.com/leaflet-measure@3.1.0/dist/leaflet-measure.min.js"></script>
 <script src="https://unpkg.com/leaflet.locatecontrol/dist/L.Control.Locate.min.js"></script>
+<script src="https://unpkg.com/leaflet-measure-control@1.1.0/dist/leaflet-measure-control.min.js"></script>
 
 <script>
 window.onload = function() {
-  // --- Khởi tạo bản đồ ---
+  // --- Tạo bản đồ ---
   const map = L.map('map', {center: [10.776,106.7], zoom: 12});
 
   // --- Các lớp nền ---
   const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {attribution: '© OpenStreetMap'}).addTo(map);
   const esriStreet = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {attribution:'© Esri'});
   const esriImagery = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {attribution:'© Esri'});
-  const bing = L.tileLayer('https://ecn.t{s}.tiles.virtualearth.net/tiles/a{q}.jpeg?g=1&key=YOUR_BING_API_KEY', {subdomains:['t0','t1','t2','t3'], attribution:'© Bing Maps'});
+  const bing = L.tileLayer('https://ecn.t{s}.tiles.virtualearth.net/tiles/a{q}.jpeg?g=1&key=YOUR_BING_API_KEY', {
+    subdomains:['t0','t1','t2','t3'], attribution:'© Bing Maps'
+  });
 
   const baseMaps = {
     "🗺️ OpenStreetMap": osm,
@@ -82,10 +84,10 @@ window.onload = function() {
     colored.length = 0;
   }
 
-  // --- Thêm công cụ ---
+  // --- Công cụ bản đồ ---
   L.control.scale().addTo(map);
   L.control.locate({strings:{title:"Định vị GPS"}}).addTo(map);
-  L.control.measure({primaryLengthUnit:'meters', primaryAreaUnit:'sqmeters'}).addTo(map);
+  L.control.measureControl({ position: 'topleft', primaryLengthUnit: 'meters', primaryAreaUnit: 'sqmeters' }).addTo(map);
 
   // --- Layer control ---
   const overlayMaps = { "🗺️ Bản đồ hành chính": hanhChinhGroup };
