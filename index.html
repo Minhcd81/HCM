@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>HCM WebGIS – Địa giới hành chính (GeoJSON)</title>
+<title>HCM WebGIS – Địa giới hành chính</title>
 
 <!-- Leaflet -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -23,6 +23,9 @@
 <script src="https://unpkg.com/leaflet.locatecontrol@0.79.0/dist/L.Control.Locate.min.js"></script>
 
 <script src="https://unpkg.com/leaflet.browser.print/dist/leaflet.browser.print.min.js"></script>
+
+<!-- GoogleMutant -->
+<script src="https://cdn.jsdelivr.net/npm/leaflet.gridlayer.googlemutant@0.10.2/Leaflet.GoogleMutant.min.js"></script>
 
 <style>
 html,body,#map{height:100%;margin:0;font-family:Segoe UI,Arial}
@@ -123,7 +126,7 @@ window.onload = async function(){
     console.log("✅ Đã tải địa giới hành chính HCM (GeoJSON)");
   }catch(err){
     console.error("❌ Lỗi tải GeoJSON:",err);
-    alert("⚠️ Không thể tải địa giới hành chính HCM.");
+    alert("⚠️ Không thể tải file địa giới hành chính. Vui lòng kiểm tra assets/TPHCM.geojson.");
   }
 
   // ==== Nút điều khiển ====
