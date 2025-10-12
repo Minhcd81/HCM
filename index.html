@@ -1,209 +1,166 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>HCM WebGIS – Google + Địa giới HCM (+đo, vẽ, la bàn)</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HCM WebGIS – Google & Địa giới hành chính</title>
 
-<!-- Leaflet core -->
+<!-- Leaflet -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-<!-- Google Maps API (Places for Autocomplete) -->
+<!-- Google Maps API -->
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyARhMzsywQPyQbrbgS6aFVb5sg7eSV34oA&libraries=places"></script>
 
-<!-- GoogleMutant (Google base layers cho Leaflet) -->
+<!-- Leaflet GoogleMutant -->
 <script src="https://cdn.jsdelivr.net/npm/leaflet.gridlayer.googlemutant@0.11.2/dist/Leaflet.GoogleMutant.min.js"></script>
 
-<!-- Plugins: Locate, Geocoder, Draw, Measure, EasyButton, Compass, EasyPrint -->
-<link rel="stylesheet" href="https://unpkg.com/leaflet.locatecontrol@0.79.0/dist/L.Control.Locate.min.css"/>
-<script src="https://unpkg.com/leaflet.locatecontrol@0.79.0/dist/L.Control.Locate.min.js"></script>
-
+<!-- Plugins -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css"/>
 <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
-
-<link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css"/>
-<script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet-measure@3.1.0/dist/leaflet-measure.css"/>
 <script src="https://unpkg.com/leaflet-measure@3.1.0/dist/leaflet-measure.js"></script>
 
-<link rel="stylesheet" href="https://unpkg.com/leaflet-easybutton@2.4.0/src/easy-button.css"/>
-<script src="https://unpkg.com/leaflet-easybutton@2.4.0/src/easy-button.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css"/>
+<script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
 
-<link rel="stylesheet" href="https://unpkg.com/leaflet-compass/dist/leaflet-compass.css"/>
-<script src="https://unpkg.com/leaflet-compass/dist/leaflet-compass.min.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet.locatecontrol@0.79.0/dist/L.Control.Locate.min.css"/>
+<script src="https://unpkg.com/leaflet.locatecontrol@0.79.0/dist/L.Control.Locate.min.js"></script>
 
-<script src="https://cdn.jsdelivr.net/npm/leaflet-easyprint@2.1.9/dist/leaflet.easyPrint.js"></script>
+<script src="https://unpkg.com/leaflet.browser.print/dist/leaflet.browser.print.min.js"></script>
 
-<!-- Shapefile + Turf -->
 <script src="https://unpkg.com/shpjs@latest/dist/shp.min.js"></script>
 <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
 
 <style>
-  html, body, #map { height: 100%; margin: 0; font-family: "Segoe UI", Arial, sans-serif; }
-  #search-box{
-    position:absolute; top:10px; left:50px; z-index:1000; width:320px;
-    padding:6px 10px; border-radius:6px; border:1px solid #ccc;
-    box-shadow:0 1px 3px rgba(0,0,0,.2);
-  }
-  .panel{
-    position:absolute; top:10px; right:10px; z-index:1000;
-    background:rgba(255,255,255,.95); padding:10px; width:230px;
-    border-radius:10px; box-shadow:0 2px 8px rgba(0,0,0,.2); font-size:13px;
-  }
-  .panel button, .panel select{ width:100%; margin-top:6px; padding:6px; }
-  .legend{
-    position:absolute; bottom:10px; left:10px; z-index:500;
-    background:rgba(255,255,255,.9); padding:8px 12px; border-radius:8px;
-    box-shadow:0 2px 6px rgba(0,0,0,.2); font-size:13px;
-  }
+  html, body, #map { height:100%; margin:0; font-family:Segoe UI,Arial,sans-serif; }
+  #search { position:absolute; top:10px; left:50px; z-index:1000; width:320px;
+    padding:6px 10px; border:1px solid #ccc; border-radius:6px; box-shadow:0 2px 4px rgba(0,0,0,.2); }
+  .panel { position:absolute; top:10px; right:10px; background:rgba(255,255,255,.95);
+    padding:10px; border-radius:10px; box-shadow:0 2px 6px rgba(0,0,0,.2); font-size:13px; width:220px; }
+  .panel button, .panel select { width:100%; margin-top:5px; padding:6px; }
+  .legend { position:absolute; bottom:10px; left:10px; background:rgba(255,255,255,.9);
+    padding:8px 12px; border-radius:8px; box-shadow:0 2px 6px rgba(0,0,0,.2); font-size:13px; }
 </style>
 </head>
 <body>
-<input id="search-box" type="text" placeholder="🔎 Nhập địa chỉ (ví dụ: 961 Hoàng Sa)..." />
+<input id="search" type="text" placeholder="🔎 Nhập địa chỉ (VD: 961 Hoàng Sa, Quận 3)" />
 <div id="map"></div>
 
-<!-- Bảng công cụ địa giới -->
 <div class="panel">
   <b>Địa giới HCM – simplify</b><br>
-  <small>Nguồn: <i>assets/hcm_admin_shp.zip</i></small>
-  <label style="margin-top:6px">Độ đơn giản hóa:</label>
-  <select id="tolerance">
-    <option value="0.00005">~5 m (chi tiết)</option>
-    <option value="0.0001" selected>~10 m (khuyến nghị)</option>
-    <option value="0.0002">~20 m (nhẹ nhất)</option>
+  <small>Nguồn: assets/hcm_admin_shp.zip</small><br>
+  <label>Độ đơn giản hóa:</label>
+  <select id="tol">
+    <option value="0.00005">5 m (chi tiết)</option>
+    <option value="0.0001" selected>10 m</option>
+    <option value="0.0002">20 m (nhẹ)</option>
   </select>
-  <button id="btnLoad">📂 Nạp địa giới</button>
-  <button id="btnToggle">👁️ Ẩn/Hiện địa giới</button>
-  <button id="btnClear">🧹 Xóa địa giới</button>
+  <button id="load">📂 Nạp địa giới</button>
+  <button id="toggle">👁️ Ẩn/Hiện địa giới</button>
+  <button id="tools">⚙️ Ẩn/Hiện công cụ</button>
 </div>
 
 <script>
-// ========== 1) BẢN ĐỒ & LỚP NỀN ==========
-const map = L.map('map', { center: [10.779, 106.69], zoom: 12 });
+const map = L.map('map',{center:[10.77,106.7],zoom:12});
 
-const gRoad = L.gridLayer.googleMutant({ type: 'roadmap' });
-const gSat  = L.gridLayer.googleMutant({ type: 'satellite' });
-const gHy   = L.gridLayer.googleMutant({ type: 'hybrid' });
-const osm   = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 });
-const esriSt= L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}');
-const esriIm= L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}');
-
+// ==== Base maps ====
+const gRoad = L.gridLayer.googleMutant({ type: "roadmap" });
+const gSat  = L.gridLayer.googleMutant({ type: "satellite" });
+const gHy   = L.gridLayer.googleMutant({ type: "hybrid" });
+const osm   = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png');
+const esriS = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}');
+const esriI = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}');
+const bing  = L.tileLayer('https://ecn.t{subdomain}.tiles.virtualearth.net/tiles/a{quadkey}.jpeg?g=1',{
+    subdomains:['0','1','2','3'], attribution:'Bing Maps'
+});
 gRoad.addTo(map);
 
 L.control.layers({
-  'Google Đường phố': gRoad,
-  'Google Vệ tinh'  : gSat,
-  'Google Hybrid'   : gHy,
-  'OpenStreetMap'   : osm,
-  'Esri Streets'    : esriSt,
-  'Esri Satellite'  : esriIm
-}, null, { position:'topright' }).addTo(map);
+  "Google Đường phố": gRoad,
+  "Google Vệ tinh": gSat,
+  "Google Hybrid": gHy,
+  "OpenStreetMap": osm,
+  "Esri Streets": esriS,
+  "Esri Satellite": esriI,
+  "Bing Maps": bing
+}, null, { position:"bottomleft" }).addTo(map);
 
-// ========== 2) TIỆN ÍCH (GPS, Geocoder, Measure, Draw, Print, Compass) ==========
-L.control.locate({ position:'topleft', strings:{ title:'Định vị GPS' } }).addTo(map);
-L.Control.geocoder({ position:'topleft', placeholder:'Tìm nhanh...' }).addTo(map);
-L.control.measure({ position:'topleft', primaryLengthUnit:'meters', primaryAreaUnit:'sqmeters' }).addTo(map);
-
-const drawnItems = new L.FeatureGroup().addTo(map);
-new L.Control.Draw({
-  edit:{ featureGroup: drawnItems },
-  draw:{ polygon:true, rectangle:true, polyline:true, circle:true, marker:true }
-}).addTo(map);
-map.on(L.Draw.Event.CREATED, e => drawnItems.addLayer(e.layer));
-
-L.easyPrint({ title:'In bản đồ', position:'topleft', filename:'ban_do_HCM' }).addTo(map);
-L.control.compass({ position:'topright', autoActive:true, showDigit:true }).addTo(map);
+// ==== Công cụ ====
+const gps = L.control.locate({ position:"topleft" }).addTo(map);
+const measure = L.control.measure({ position:"topleft" }).addTo(map);
+const drawGroup = new L.FeatureGroup().addTo(map);
+const draw = new L.Control.Draw({ edit:{featureGroup:drawGroup} }).addTo(map);
+map.on(L.Draw.Event.CREATED,e=>drawGroup.addLayer(e.layer));
+L.control.browserPrint({ title:"In bản đồ", position:"topleft" }).addTo(map);
+L.Control.geocoder({ position:"topleft" }).addTo(map);
 L.control.scale({ metric:true }).addTo(map);
 
-// ========== 3) SEARCH Google Autocomplete ==========
-const searchInput = document.getElementById('search-box');
-const ac = new google.maps.places.Autocomplete(searchInput, { types:['geocode'] });
-ac.addListener('place_changed', () => {
-  const place = ac.getPlace();
-  if (!place.geometry) return;
-  const lat = place.geometry.location.lat(), lng = place.geometry.location.lng();
-  map.setView([lat, lng], 16);
-  L.marker([lat, lng]).addTo(map).bindPopup(`<b>${place.formatted_address}</b>`).openPopup();
+let toolsVisible = true;
+document.getElementById("tools").onclick = ()=>{
+  toolsVisible = !toolsVisible;
+  document.querySelectorAll(".leaflet-control").forEach(el=>{
+    if (!el.classList.contains("leaflet-control-layers")) el.style.display = toolsVisible?"":"none";
+  });
+};
+
+// ==== Autocomplete ====
+const ac = new google.maps.places.Autocomplete(document.getElementById("search"),{types:["geocode"]});
+ac.addListener("place_changed",()=>{
+  const p = ac.getPlace();
+  if (!p.geometry) return;
+  const lat=p.geometry.location.lat(), lng=p.geometry.location.lng();
+  map.setView([lat,lng],16);
+  L.marker([lat,lng]).addTo(map).bindPopup(`<b>${p.formatted_address}</b>`).openPopup();
 });
 
-// ========== 4) ĐỊA GIỚI HCM (nạp từ shapefile) ==========
-let boundaryLayer = null;
-let boundaryVisible = true;
-let currentHit = null;
+// ==== Địa giới HCM ====
+let layer=null, visible=true;
+const stDef = {color:"#1565C0",weight:1.2,fillOpacity:0.05};
+const stHigh= {color:"#F57C00",weight:3,fillColor:"#FFE082",fillOpacity:0.5};
 
-const styleDefault  = () => ({ color:'#1976D2', weight:1.4, fillOpacity:0.06 });
-const styleHighlight= () => ({ color:'#0B5ED7', weight:3, fillColor:'#FFD43B', fillOpacity:0.55 });
-
-function popupHTML(p){
-  const danso = p.dan_so ? Number(p.dan_so).toLocaleString('vi-VN') : '–';
-  const dtich = p.dtich_km2 ?? '–';
-  const snhap = p.sap_nhap || '–';
-  const qh    = p.quan_huyen || '–';
-  return `
-    <b>${p.ten_xa || 'Không rõ'}</b><br/>
-    Quận/Huyện: ${qh}<br/>
-    Diện tích: ${dtich} km²<br/>
-    Dân số: ${danso} người<br/>
-    Sáp nhập: ${snhap}
-  `;
+function popup(p){
+  return `<b>${p.ten_xa||"Không rõ"}</b><br>
+  Quận/Huyện: ${p.quan_huyen||"–"}<br>
+  Diện tích: ${p.dtich_km2||"–"} km²<br>
+  Dân số: ${p.dan_so?Number(p.dan_so).toLocaleString("vi-VN"):"–"} người<br>
+  Sáp nhập: ${p.sap_nhap||"–"}`;
 }
 
 async function loadBoundary(){
-  // Clear cũ
-  if (boundaryLayer) { map.removeLayer(boundaryLayer); boundaryLayer = null; }
-
-  const tol = parseFloat(document.getElementById('tolerance').value);
-  const raw = await shp('assets/hcm_admin_shp.zip');
-  const simplified = turf.simplify(raw, { tolerance: tol, highQuality:false });
-
-  boundaryLayer = L.geoJSON(simplified, {
-    style: styleDefault,
-    onEachFeature: (f, lyr) => {
-      const p = f.properties || {};
-      lyr.bindTooltip(p.ten_xa || '', { sticky:true });
-      lyr.on('click', () => {
-        if (currentHit) boundaryLayer.resetStyle(currentHit);
-        currentHit = lyr;
-        lyr.setStyle(styleHighlight());
-        const center = lyr.getBounds().getCenter();
-        L.popup({ maxWidth:320 })
-          .setLatLng(center)
-          .setContent(popupHTML(p))
-          .openOn(map);
+  if (layer) map.removeLayer(layer);
+  const tol=parseFloat(document.getElementById("tol").value);
+  const data=await shp("assets/hcm_admin_shp.zip");
+  const simp=turf.simplify(data,{tolerance:tol,highQuality:false});
+  layer=L.geoJSON(simp,{
+    style:()=>stDef,
+    onEachFeature:(f,l)=>{
+      const p=f.properties;
+      l.bindTooltip(p.ten_xa||"");
+      l.on("click",()=>{
+        layer.resetStyle();
+        l.setStyle(stHigh);
+        L.popup({maxWidth:300}).setLatLng(l.getBounds().getCenter()).setContent(popup(p)).openOn(map);
       });
     }
   }).addTo(map);
-
-  boundaryVisible = true;
-  map.fitBounds(boundaryLayer.getBounds());
+  map.fitBounds(layer.getBounds());
 }
 
-// Nút panel
-document.getElementById('btnLoad').onclick   = loadBoundary;
-document.getElementById('btnToggle').onclick = () => {
-  if (!boundaryLayer) return;
-  boundaryVisible ? map.removeLayer(boundaryLayer) : map.addLayer(boundaryLayer);
-  boundaryVisible = !boundaryVisible;
-};
-document.getElementById('btnClear').onclick  = () => {
-  if (boundaryLayer) { map.removeLayer(boundaryLayer); boundaryLayer = null; }
-  boundaryVisible = false;
-  currentHit = null;
+document.getElementById("load").onclick=loadBoundary;
+document.getElementById("toggle").onclick=()=>{
+  if (!layer) return;
+  visible=!visible;
+  visible?map.addLayer(layer):map.removeLayer(layer);
 };
 
-// Tự động nạp khi mở trang (có thể tắt nếu muốn)
-loadBoundary();
-
-// ========== 5) Legend ==========
-L.control({ position:'bottomleft' }).onAdd = function(){
-  const div = L.DomUtil.create('div','legend');
-  div.innerHTML = `
-    <b>Chú giải</b><br/>
-    <span style="display:inline-block;width:14px;height:14px;background:#1976D2;border:1px solid #1976D2;margin-right:6px"></span> Ranh địa giới<br/>
-    <span style="display:inline-block;width:14px;height:14px;background:#FFD43B;border:1px solid #0B5ED7;margin-right:6px"></span> Khu được chọn
-  `;
+// legend
+L.control({position:"bottomright"}).onAdd=()=>{
+  const div=L.DomUtil.create("div","legend");
+  div.innerHTML=`<b>Chú giải</b><br>
+  <span style="display:inline-block;width:14px;height:14px;background:#1565C0;margin-right:6px"></span> Địa giới<br>
+  <span style="display:inline-block;width:14px;height:14px;background:#FFE082;margin-right:6px"></span> Khi chọn`;
   return div;
 }.addTo(map);
 </script>
