@@ -3,51 +3,53 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Bản đồ TP.HCM - Fix GitHub Pages</title>
+<title>Bản đồ TP.HCM - Fix GoogleMutant</title>
 
 <!-- 🗺️ Leaflet core -->
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-<!-- ✅ Google Maps API (đặt trước, KHÔNG async/defers để đảm bảo thứ tự load đúng) -->
-<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyARhMzsyCl2pO9iTNoSvcs8UQvm6qU5A9A&libraries=places"></script>
+<!-- ✅ Google Maps API (load trước, không async/defer để đảm bảo thứ tự) -->
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyARhMzsywQPyQbrbgS6aFVb5sg7eSV34oA&libraries=places"></script>
 
-<!-- ✅ GoogleMutant (link hoạt động ổn định trên GitHub Pages) -->
-<script src="https://cdn.jsdelivr.net/npm/leaflet.gridlayer.googlemutant@0.13.6/dist/Leaflet.GoogleMutant.min.js"></script>
+<!-- ✅ Bản ổn định Leaflet.GoogleMutant (có CORS và integrity) -->
+<script src="https://cdn.jsdelivr.net/gh/IvanSanchez/Leaflet.GridLayer.GoogleMutant@master/Leaflet.GoogleMutant.js" crossorigin="anonymous"></script>
 
-<!-- 🧩 Plugin Leaflet phụ trợ -->
+<!-- 🧩 Các plugin Leaflet -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet.locatecontrol@0.79.0/dist/L.Control.Locate.min.css"/>
 <script src="https://unpkg.com/leaflet.locatecontrol@0.79.0/dist/L.Control.Locate.min.js"></script>
+
 <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css"/>
 <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
-<script src="https://unpkg.com/leaflet-compass/dist/leaflet-compass.min.js"></script>
-<link rel="stylesheet" href="https://unpkg.com/leaflet-easybutton@2.4.0/src/easy-button.css"/>
-<script src="https://unpkg.com/leaflet-easybutton@2.4.0/src/easy-button.js"></script>
 
-<!-- ✏️ Vẽ & đo -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css"/>
 <script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
+
 <link rel="stylesheet" href="https://unpkg.com/leaflet-measure@3.1.0/dist/leaflet-measure.css"/>
 <script src="https://unpkg.com/leaflet-measure@3.1.0/dist/leaflet-measure.js"></script>
 
-<!-- 🖨️ In bản đồ -->
-<script src="https://unpkg.com/leaflet-easyprint@2.1.9/dist/bundle.min.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet-easybutton@2.4.0/src/easy-button.css"/>
+<script src="https://unpkg.com/leaflet-easybutton@2.4.0/src/easy-button.js"></script>
 
-<!-- 🗂️ Shapefile & địa lý -->
+<script src="https://unpkg.com/leaflet-easyprint@2.1.9/dist/bundle.min.js"></script>
 <script src="https://unpkg.com/shpjs@latest/dist/shp.min.js"></script>
 <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
 
 <style>
-  html, body, #map { height: 100%; margin: 0; font-family: "Segoe UI", Arial, sans-serif; }
+  html, body, #map { height: 100%; margin: 0; }
   .legend {
-    position:absolute; bottom:10px; left:10px;
-    background:rgba(255,255,255,0.9);
-    padding:8px 12px; border-radius:8px;
-    box-shadow:0 2px 6px rgba(0,0,0,0.2); font-size:13px;
+    position: absolute;
+    bottom: 10px;
+    left: 10px;
+    background: rgba(255, 255, 255, 0.9);
+    padding: 8px 12px;
+    border-radius: 8px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+    font-size: 13px;
   }
-  .leaflet-popup-content { font-size: 14px; line-height: 1.4; }
 </style>
 </head>
+
 <body>
 <div id="map"></div>
 
@@ -67,29 +69,32 @@ const baseMaps = {
   "Google Kết hợp": hybrid
 };
 
-// ===== 2️⃣ Các công cụ điều hướng =====
+// ===== 2️⃣ Công cụ =====
 L.control.layers(baseMaps, null, { collapsed: true, position: "topright" }).addTo(map);
-L.control.locate({ position: "topleft", strings: { title: "Định vị GPS" }}).addTo(map);
+L.control.locate({ position: "topleft", strings: { title: "Định vị GPS" } }).addTo(map);
 L.Control.geocoder({ position: "topleft", placeholder: "Tìm kiếm địa chỉ..." }).addTo(map);
-L.control.compass({ position: "topright", autoActive: true, showDigit: true }).addTo(map);
 L.control.scale({ metric: true }).addTo(map);
 
-// ===== 3️⃣ Công cụ đo, vẽ, in =====
+// ===== 3️⃣ Đo, vẽ, in =====
 L.control.measure({ position: "topleft", primaryLengthUnit: "meters", primaryAreaUnit: "sqmeters" }).addTo(map);
 const drawnItems = new L.FeatureGroup().addTo(map);
 new L.Control.Draw({
   edit: { featureGroup: drawnItems },
-  draw: { circle: true, polygon: true, polyline: true, rectangle: true, marker: true }
+  draw: { polygon: true, rectangle: true, polyline: true, circle: true, marker: true }
 }).addTo(map);
 map.on(L.Draw.Event.CREATED, e => drawnItems.addLayer(e.layer));
 
-// In bản đồ
-L.easyPrint({ title: "In bản đồ", position: "topleft", filename: "ban_do_HCM" }).addTo(map);
+L.easyPrint({
+  title: "In bản đồ",
+  position: "topleft",
+  filename: "ban_do_HCM"
+}).addTo(map);
 
-// ===== 4️⃣ Hiển thị shapefile địa giới =====
+// ===== 4️⃣ Hiển thị shapefile =====
 let currentLayer = null;
 function styleDefault() { return { color: "#2262CC", weight: 1.2, fillOpacity: 0.05 }; }
 function styleHighlight() { return { color: "#0B5ED7", weight: 3, fillColor: "#FFD43B", fillOpacity: 0.5 }; }
+
 function popupContent(p) {
   const dan_so = p.dan_so ? p.dan_so.toLocaleString("vi-VN") : "–";
   const matdo = p.matdo_km2 ? p.matdo_km2.toLocaleString("vi-VN") : "–";
@@ -104,49 +109,52 @@ function popupContent(p) {
 }
 
 (async function() {
-  const url = "assets/hcm_admin_shp.zip";
-  const geojson = await shp(url);
-  const geoLayer = L.geoJSON(geojson, {
-    style: styleDefault,
-    onEachFeature: (f, l) => {
-      const p = f.properties;
-      const centroid = turf.centroid(f).geometry.coordinates;
-      l.on("click", () => {
-        if (currentLayer) geoLayer.resetStyle(currentLayer);
-        currentLayer = l;
-        l.setStyle(styleHighlight());
-        L.popup({ maxWidth: 300 })
-          .setLatLng([centroid[1], centroid[0]])
-          .setContent(popupContent(p))
-          .openOn(map);
-      });
-      l.bindTooltip(`${p.loai || ""} ${p.ten_xa || ""}`, { permanent: false });
-    }
-  }).addTo(map);
-  map.fitBounds(geoLayer.getBounds());
+  try {
+    const geojson = await shp("assets/hcm_admin_shp.zip");
+    const layer = L.geoJSON(geojson, {
+      style: styleDefault,
+      onEachFeature: (f, l) => {
+        const p = f.properties;
+        const centroid = turf.centroid(f).geometry.coordinates;
+        l.on("click", () => {
+          if (currentLayer) layer.resetStyle(currentLayer);
+          currentLayer = l;
+          l.setStyle(styleHighlight());
+          L.popup({ maxWidth: 300 })
+            .setLatLng([centroid[1], centroid[0]])
+            .setContent(popupContent(p))
+            .openOn(map);
+        });
+        l.bindTooltip(`${p.loai || ""} ${p.ten_xa || ""}`);
+      }
+    }).addTo(map);
+    map.fitBounds(layer.getBounds());
+  } catch (e) {
+    console.error("Không tải được shapefile:", e);
+  }
 })();
 
-// ===== 5️⃣ Nút tải GeoJSON và Xóa =====
-L.easyButton('💾', function() {
+// ===== 5️⃣ Nút tiện ích =====
+L.easyButton("💾", () => {
   const data = drawnItems.toGeoJSON();
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
   a.download = "drawn_features.geojson";
   a.click();
-}, 'Tải GeoJSON đã vẽ').addTo(map);
+}, "Tải GeoJSON đã vẽ").addTo(map);
 
-L.easyButton('🗑️', function() {
+L.easyButton("🗑️", () => {
   drawnItems.clearLayers();
   alert("Đã xóa toàn bộ đối tượng đã vẽ!");
-}, 'Xóa tất cả đối tượng đã vẽ').addTo(map);
+}, "Xóa tất cả").addTo(map);
 
 // ===== 6️⃣ Legend =====
 L.control({ position: "bottomleft" }).onAdd = function() {
   const div = L.DomUtil.create("div", "legend");
   div.innerHTML = `
     <b>Chú giải</b><br>
-    <span style="display:inline-block;width:14px;height:14px;background:#2262CC;border:1px solid #2262CC;margin-right:4px"></span> Địa giới hành chính<br>
+    <span style="display:inline-block;width:14px;height:14px;background:#2262CC;border:1px solid #2262CC;margin-right:4px"></span> Địa giới<br>
     <span style="display:inline-block;width:14px;height:14px;background:#FFD43B;border:1px solid #0B5ED7;margin-right:4px"></span> Khi chọn<br>
     <b>Công cụ:</b> Vẽ, đo, in, tải GeoJSON, xóa đối tượng
   `;
