@@ -2,13 +2,13 @@
 <html lang="vi">
 <head>
 <meta charset="utf-8" />
-<title>HCM WebGIS – Địa giới phường xã & quận huyện</title>
+<title>HCM WebGIS – Địa giới hành chính + Đo đạc ổn định</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <!-- Leaflet CSS -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <link rel="stylesheet" href="https://unpkg.com/leaflet.locatecontrol/dist/L.Control.Locate.min.css"/>
-<link rel="stylesheet" href="https://unpkg.com/leaflet-measure-control@1.1.0/dist/leaflet-measure-control.css"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet-measure/dist/leaflet-measure.css"/>
 
 <style>
   html, body, #map {height:100%; margin:0; padding:0;}
@@ -28,14 +28,14 @@
 <!-- JS -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/leaflet.locatecontrol/dist/L.Control.Locate.min.js"></script>
-<script src="https://unpkg.com/leaflet-measure-control@1.1.0/dist/leaflet-measure-control.min.js"></script>
+<script src="https://unpkg.com/leaflet-measure/dist/leaflet-measure.js"></script>
 
 <script>
 window.onload = function() {
   // --- Khởi tạo bản đồ ---
   const map = L.map('map', {center: [10.776,106.7], zoom: 12});
 
-  // --- Các lớp nền ---
+  // --- Lớp nền ---
   const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {attribution: '© OpenStreetMap'}).addTo(map);
   const esriStreet = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {attribution:'© Esri'});
   const esriImagery = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {attribution:'© Esri'});
@@ -50,21 +50,19 @@ window.onload = function() {
     "🌤️ Bing Aerial": bing
   };
 
-  // --- Các nhóm lớp ---
+  // --- Nhóm lớp ---
   const phuongXaGroup = L.layerGroup();
   const quanHuyenGroup = L.layerGroup();
   const labelGroup = L.layerGroup();
 
-  let phuongXaLayer, quanHuyenLayer;
-
-  // --- Hàm nạp địa giới ---
+  // --- Nạp dữ liệu địa giới ---
   async function loadHCM() {
     try {
       const res = await fetch('assets/TPHCM.geojson');
       const data = await res.json();
 
-      // --- Phường/Xã ---
-      phuongXaLayer = L.geoJSON(data, {
+      // --- Vẽ phường/xã ---
+      const phuongXaLayer = L.geoJSON(data, {
         style: { color: "#ff6600", weight: 1, fillOpacity: 0.1 },
         onEachFeature: (f, l) => {
           const p = f.properties || {};
@@ -73,7 +71,7 @@ window.onload = function() {
         }
       }).addTo(phuongXaGroup);
 
-      // --- Tạo ranh giới quận ---
+      // --- Ranh giới quận/huyện ---
       const districts = {};
       data.features.forEach(f => {
         const p = f.properties || {};
@@ -81,41 +79,37 @@ window.onload = function() {
         if (f.geometry) districts[p.quan_huyen].push(f.geometry);
       });
 
-      // --- Gộp các vùng theo quận ---
       Object.keys(districts).forEach(q => {
         const feature = { type: "FeatureCollection", features: districts[q].map(g => ({type:"Feature", geometry:g})) };
         L.geoJSON(feature, {
-          style: { color: "#660099", weight: 3, fillOpacity: 0 },
+          style: { color: "#800080", weight: 3, fillOpacity: 0 },
           onEachFeature: (f,l) => l.bindTooltip(`<b>${q}</b>`, {permanent:false})
         }).addTo(quanHuyenGroup);
       });
 
-      // --- Tạo nhãn địa danh ---
+      // --- Nhãn phường/xã ---
       data.features.forEach(f => {
         const p = f.properties || {};
         if (f.geometry && (f.geometry.type === "Polygon" || f.geometry.type === "MultiPolygon")) {
           const center = getCenter(f);
           if (center) {
             const label = L.marker(center, {
-              icon: L.divIcon({
-                className: "label-text",
-                html: p.ten_xa || "",
-              })
+              icon: L.divIcon({ className: "label-text", html: p.ten_xa || "" })
             });
             labelGroup.addLayer(label);
           }
         }
       });
 
-      console.log("✅ Đã tải bản đồ hành chính, nhãn và ranh giới quận huyện");
       phuongXaGroup.addTo(map);
-    } catch(e) {
+      console.log("✅ Đã tải địa giới hành chính, nhãn và ranh giới quận");
+    } catch (e) {
       alert("❌ Không thể tải file 'assets/TPHCM.geojson'");
       console.error(e);
     }
   }
 
-  // --- Tính trung tâm vùng ---
+  // --- Tính tâm Polygon ---
   function getCenter(feature) {
     try {
       const coords = (feature.geometry.type === "Polygon")
@@ -123,8 +117,7 @@ window.onload = function() {
         : feature.geometry.coordinates[0][0];
       let lat = 0, lng = 0;
       coords.forEach(c => { lng += c[0]; lat += c[1]; });
-      const n = coords.length;
-      return [lat/n, lng/n];
+      return [lat/coords.length, lng/coords.length];
     } catch { return null; }
   }
 
@@ -141,14 +134,14 @@ window.onload = function() {
     colored.length = 0;
   }
 
-  // --- Công cụ ---
+  // --- Công cụ bản đồ ---
   L.control.scale().addTo(map);
   L.control.locate({strings:{title:"Định vị GPS"}}).addTo(map);
-  new L.Control.Measure({
-    position: 'topleft',
+  L.control.measure({
     primaryLengthUnit: 'meters',
     secondaryLengthUnit: 'kilometers',
-    primaryAreaUnit: 'sqmeters'
+    primaryAreaUnit: 'sqmeters',
+    position: 'topleft'
   }).addTo(map);
 
   // --- Layer control ---
@@ -159,23 +152,19 @@ window.onload = function() {
   };
   L.control.layers(baseMaps, overlayMaps).addTo(map);
 
-  // --- Panel ---
+  // --- Nút tùy chọn ---
   const panel = L.control({position:'topright'});
   panel.onAdd = function(){
     const div = L.DomUtil.create('div','leaflet-bar');
     div.innerHTML = `
-      <button onclick="window._hidePhuongXa()">Ẩn phường/xã</button>
       <button onclick="window._clearColors()">🎨 Xóa tô màu</button>
     `;
     return div;
   };
   panel.addTo(map);
-
-  // --- Cho phép gọi từ ngoài ---
-  window._hidePhuongXa = () => { phuongXaGroup.clearLayers(); };
   window._clearColors = clearColors;
 
-  // --- Tự động nạp khi mở ---
+  // --- Nạp dữ liệu ---
   loadHCM();
 };
 </script>
