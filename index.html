@@ -3,19 +3,19 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Bản đồ địa giới TP.HCM - WebGIS Biên tập (Fix)</title>
+<title>Bản đồ TP.HCM - Fix GitHub Pages</title>
 
 <!-- 🗺️ Leaflet core -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-<!-- ✅ Google Maps API (async & defer) -->
-<script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyARhMzsywQPyQbrbgS6aFVb5sg7eSV34oA&libraries=places"></script>
+<!-- ✅ Google Maps API (đặt trước, KHÔNG async/defers để đảm bảo thứ tự load đúng) -->
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyARhMzsyCl2pO9iTNoSvcs8UQvm6qU5A9A&libraries=places"></script>
 
-<!-- ✅ GoogleMutant (đã sửa link ổn định cho GitHub Pages) -->
+<!-- ✅ GoogleMutant (link hoạt động ổn định trên GitHub Pages) -->
 <script src="https://cdn.jsdelivr.net/npm/leaflet.gridlayer.googlemutant@0.13.6/dist/Leaflet.GoogleMutant.min.js"></script>
 
-<!-- 🧩 Plugin Leaflet -->
+<!-- 🧩 Plugin Leaflet phụ trợ -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet.locatecontrol@0.79.0/dist/L.Control.Locate.min.css"/>
 <script src="https://unpkg.com/leaflet.locatecontrol@0.79.0/dist/L.Control.Locate.min.js"></script>
 <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css"/>
@@ -33,7 +33,7 @@
 <!-- 🖨️ In bản đồ -->
 <script src="https://unpkg.com/leaflet-easyprint@2.1.9/dist/bundle.min.js"></script>
 
-<!-- 🗂️ Xử lý shapefile & địa lý -->
+<!-- 🗂️ Shapefile & địa lý -->
 <script src="https://unpkg.com/shpjs@latest/dist/shp.min.js"></script>
 <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
 
@@ -61,7 +61,6 @@ const satellite = L.gridLayer.googleMutant({ type: "satellite" });
 const hybrid = L.gridLayer.googleMutant({ type: "hybrid" });
 roadmap.addTo(map);
 
-// ---- Base map control ----
 const baseMaps = {
   "Google Đường phố": roadmap,
   "Google Vệ tinh": satellite,
@@ -85,14 +84,9 @@ new L.Control.Draw({
 map.on(L.Draw.Event.CREATED, e => drawnItems.addLayer(e.layer));
 
 // In bản đồ
-L.easyPrint({
-  title: "In bản đồ",
-  position: "topleft",
-  sizeModes: ["A4Portrait","A4Landscape"],
-  filename: "ban_do_HCM"
-}).addTo(map);
+L.easyPrint({ title: "In bản đồ", position: "topleft", filename: "ban_do_HCM" }).addTo(map);
 
-// ===== 4️⃣ Tải shapefile địa giới =====
+// ===== 4️⃣ Hiển thị shapefile địa giới =====
 let currentLayer = null;
 function styleDefault() { return { color: "#2262CC", weight: 1.2, fillOpacity: 0.05 }; }
 function styleHighlight() { return { color: "#0B5ED7", weight: 3, fillColor: "#FFD43B", fillOpacity: 0.5 }; }
@@ -132,7 +126,7 @@ function popupContent(p) {
   map.fitBounds(geoLayer.getBounds());
 })();
 
-// ===== 5️⃣ Nút tải GeoJSON và Xóa tất cả =====
+// ===== 5️⃣ Nút tải GeoJSON và Xóa =====
 L.easyButton('💾', function() {
   const data = drawnItems.toGeoJSON();
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
