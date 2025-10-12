@@ -1,175 +1,144 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Địa giới hành chính TP.HCM – Simplify & Leaflet</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bản đồ địa giới hành chính TP.HCM - Nâng cấp Google Maps</title>
 
-  <!-- Leaflet -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
-  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<!-- 🗺️ Leaflet core -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-  <!-- shpjs: đọc shapefile .zip -> GeoJSON -->
-  <script src="https://unpkg.com/shpjs@latest/dist/shp.min.js"></script>
+<!-- Google Maps API -->
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyARhMzsywQPyQbrbgS6aFVb5sg7eSV34oA&libraries=places"></script>
 
-  <!-- Turf.js: simplify hình học -->
-  <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
+<!-- Leaflet plugins -->
+<script src="https://unpkg.com/leaflet.gridlayer.googlemutant@0.13.6/dist/Leaflet.GoogleMutant.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet.locatecontrol@0.79.0/dist/L.Control.Locate.min.css"/>
+<script src="https://unpkg.com/leaflet.locatecontrol@0.79.0/dist/L.Control.Locate.min.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css"/>
+<script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
+<script src="https://unpkg.com/leaflet-compass/dist/leaflet-compass.min.js"></script>
+<script src="https://unpkg.com/leaflet-easybutton@2.4.0/src/easy-button.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet-easybutton@2.4.0/src/easy-button.css"/>
 
-  <style>
-    html, body { height:100%; margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
-    #map { width:100%; height:100%; }
-    .panel {
-      position:absolute; top:10px; right:10px; z-index:9999;
-      background:#fff; padding:10px; border-radius:10px;
-      box-shadow:0 2px 8px rgba(0,0,0,0.15); font-size:13px; width:260px;
-    }
-    .panel input, .panel select, .panel button { width:100%; margin-top:6px; font-size:13px; }
-    .legend {
-      position:absolute; left:10px; bottom:10px; z-index:9999;
-      background:#fff; padding:8px 10px; border-radius:10px; box-shadow:0 2px 8px rgba(0,0,0,0.15);
-      font-size:13px;
-    }
-  </style>
+<!-- Turf.js (để simplify hoặc xử lý centroid) -->
+<script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
+
+<style>
+  html, body, #map {
+    height: 100%;
+    margin: 0;
+    font-family: "Segoe UI", Arial, sans-serif;
+  }
+  .leaflet-popup-content {
+    font-size: 14px;
+    line-height: 1.4;
+  }
+  .legend {
+    position:absolute; bottom:10px; left:10px;
+    background:rgba(255,255,255,0.9);
+    padding:8px 12px;
+    border-radius:8px;
+    box-shadow:0 2px 6px rgba(0,0,0,0.2);
+    font-size:13px;
+  }
+</style>
 </head>
 <body>
 <div id="map"></div>
 
-<div class="panel">
-  <b>Địa giới HCM – simplify</b>
-  <div style="margin-top:6px">Nguồn: <code>assets/hcm_admin_shp.zip</code></div>
-  <label style="margin-top:8px">Mức đơn giản hoá (tolerance, mét ước tính*):</label>
-  <select id="tol">
-    <option value="10">10 m (chi tiết)</option>
-    <option value="20" selected>20 m (khuyến nghị)</option>
-    <option value="35">35 m</option>
-    <option value="50">50 m (nhẹ)</option>
-    <option value="75">75 m (rất nhẹ)</option>
-  </select>
-  <button id="btnLoad">Tải & hiển thị</button>
-  <button id="btnDownload" disabled>Tải GeoJSON đã simplify</button>
-  <small style="display:block;margin-top:6px;color:#666">
-    *Turf dùng đơn vị độ, ở đây có nội suy gần đúng theo vĩ độ HCM.
-  </small>
-</div>
-
-<div class="legend">
-  <b>Chú giải</b><br>
-  <span style="display:inline-block;width:12px;height:12px;background:#2262CC;margin-right:6px;"></span>
-  Địa giới (simplify)
-</div>
-
 <script>
-  // ====== 1) Khởi tạo bản đồ ======
-  const map = L.map('map', { center: [10.77, 106.7], zoom: 11 });
-  const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom: 20, attribution: '&copy; OpenStreetMap'
-  }).addTo(map);
-  const esriSat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-    maxZoom: 20, attribution: '&copy; Esri'
-  });
-  L.control.layers({ 'OSM': osm, 'Esri Satellite': esriSat }, null, {collapsed:true}).addTo(map);
+// ===== 1. Khởi tạo bản đồ =====
+const map = L.map('map', { center: [10.77, 106.7], zoom: 11 });
 
-  // ====== 2) Hàm util: giữ 8 trường, popup/tooltip ======
-  function pickProperties(props) {
-    return {
-      ma_xa: props.ma_xa ?? null,
-      ten_xa: props.ten_xa ?? props.ten ?? null,
-      loai: props.loai ?? null,
-      dan_so: props.dan_so ?? null,
-      dtich_km2: props.dtich_km2 ?? null,
-      matdo_km2: props.matdo_km2 ?? null,
-      tru_so: props.tru_so ?? null,
-      ten_tinh: props.ten_tinh ?? "TP. Hồ Chí Minh"
-    };
-  }
+// ---- Google Maps layers ----
+const roadmap = L.gridLayer.googleMutant({ type: 'roadmap' });
+const hybrid = L.gridLayer.googleMutant({ type: 'hybrid' });
+const satellite = L.gridLayer.googleMutant({ type: 'satellite' });
+roadmap.addTo(map);
 
-  function bindPopupAndTooltip(layer, p) {
-    const dan_so = (p.dan_so != null && p.dan_so !== '') ? Number(p.dan_so).toLocaleString('vi-VN') : '–';
-    const matdo  = (p.matdo_km2 != null && p.matdo_km2 !== '') ? Number(p.matdo_km2).toLocaleString('vi-VN') : '–';
-    const dtich  = (p.dtich_km2 != null && p.dtich_km2 !== '') ? p.dtich_km2 : '–';
-    const loai   = p.loai ? p.loai : '';
-    const name   = p.ten_xa ? p.ten_xa : 'Không rõ tên';
+// ---- Base maps control ----
+const baseMaps = {
+  "Google Roadmap": roadmap,
+  "Google Satellite": satellite,
+  "Google Hybrid": hybrid
+};
+L.control.layers(baseMaps, null, { position: "topright", collapsed: true }).addTo(map);
 
-    const html = `
-      <b>${loai} ${name}</b><br/>
-      Tỉnh/TP: ${p.ten_tinh || 'TP. Hồ Chí Minh'}<br/>
-      Dân số: ${dan_so} người<br/>
-      Diện tích: ${dtich} km²<br/>
-      Mật độ: ${matdo} người/km²<br/>
-      Trụ sở: ${p.tru_so || '–'}<br/>
-      Mã hành chính: ${p.ma_xa || '–'}
-    `;
-    layer.bindPopup(html);
-    layer.bindTooltip(`${loai} ${name}`, {permanent:false});
-  }
+// ===== 2. Thêm các control tiện ích =====
+L.control.locate({ position: "topleft", strings: { title: "Định vị GPS" }}).addTo(map);
+L.Control.geocoder({ position: "topleft", placeholder: "Tìm kiếm địa chỉ..." }).addTo(map);
+L.control.compass({ position: "topright", autoActive: true, showDigit: true }).addTo(map);
+L.control.scale({ metric: true, imperial: false, position: "bottomleft" }).addTo(map);
 
-  // ====== 3) Chuyển shapefile -> GeoJSON & simplify ======
-  let currentLayer = null;
-  let simplifiedGeoJSON = null;
+// ===== 3. Hàm xử lý popup và highlight =====
+let currentLayer = null;
+function styleDefault() {
+  return { color: "#2262CC", weight: 1.2, fillOpacity: 0.05 };
+}
+function styleHighlight() {
+  return { color: "#0B5ED7", weight: 3, fillColor: "#FFD43B", fillOpacity: 0.5 };
+}
 
-  function approxMetersToDegrees(m) {
-    // gần đúng tại vĩ độ ~10.77 (HCM): 1 độ ~ 111320 m
-    return m / 111320;
-  }
+// Popup nội dung
+function popupContent(p) {
+  const dan_so = p.dan_so ? p.dan_so.toLocaleString("vi-VN") : "–";
+  const matdo = p.matdo_km2 ? p.matdo_km2.toLocaleString("vi-VN") : "–";
+  const dtich = p.dtich_km2 || "–";
+  const name = p.ten_xa || "Không rõ";
+  const loai = p.loai || "";
+  return `
+    <b>${loai} ${name}</b><br>
+    Tỉnh/TP: ${p.ten_tinh || "TP. Hồ Chí Minh"}<br>
+    Dân số: ${dan_so} người<br>
+    Diện tích: ${dtich} km²<br>
+    Mật độ: ${matdo} người/km²<br>
+    Trụ sở: ${p.tru_so || "–"}<br>
+    Mã hành chính: ${p.ma_xa || "–"}
+  `;
+}
 
-  async function loadAndSimplify() {
-    try {
-      const tolMeters = Number(document.getElementById('tol').value);
-      const tolDegrees = approxMetersToDegrees(tolMeters);
+// ===== 4. Đọc shapefile (GeoJSON hoặc từ zip assets) =====
+(async function() {
+  const url = "assets/hcm_admin_shp.zip";
+  const geojson = await window.shp(url);
 
-      // Đọc shapefile zip
-      const url = 'assets/hcm_admin_shp.zip';
-      const raw = await window.shp(url); // -> GeoJSON (FeatureCollection)
-
-      // Chỉ giữ 8 trường và chuẩn hoá popup
-      const cleaned = {
-        type: 'FeatureCollection',
-        features: raw.features.map(f => ({
-          type: 'Feature',
-          properties: pickProperties(f.properties || {}),
-          geometry: f.geometry
-        }))
-      };
-
-      // Simplify bằng Turf (preserve topology)
-      simplifiedGeoJSON = turf.simplify(cleaned, {
-        tolerance: tolDegrees,
-        highQuality: false,
-        mutate: false
+  const layer = L.geoJSON(geojson, {
+    style: styleDefault,
+    onEachFeature: function(feat, layer) {
+      const props = feat.properties;
+      const centroid = turf.centroid(feat);
+      layer.bindTooltip(`${props.loai || ""} ${props.ten_xa || ""}`, { permanent: false });
+      layer.on("click", function() {
+        if (currentLayer) geoLayer.resetStyle(currentLayer);
+        currentLayer = layer;
+        layer.setStyle(styleHighlight());
+        const center = [centroid.geometry.coordinates[1], centroid.geometry.coordinates[0]];
+        const popup = L.popup({ maxWidth: 300, autoPan: true })
+          .setLatLng(center)
+          .setContent(popupContent(props))
+          .openOn(map);
       });
-
-      // Vẽ lên bản đồ
-      if (currentLayer) currentLayer.remove();
-      currentLayer = L.geoJSON(simplifiedGeoJSON, {
-        style: { color:'#2262CC', weight:1.2, fillOpacity:0.05 },
-        onEachFeature: (feat, layer) => bindPopupAndTooltip(layer, feat.properties || {})
-      }).addTo(map);
-
-      // Fit bounds
-      try { map.fitBounds(currentLayer.getBounds(), {padding:[20,20]}); } catch(e){}
-
-      // Bật nút download
-      document.getElementById('btnDownload').disabled = false;
-      alert('Đã tải & simplify xong!');
-
-    } catch (err) {
-      console.error(err);
-      alert('Có lỗi khi tải/simplify shapefile. Kiểm tra lại assets/hcm_admin_shp.zip (đủ .shp + .shx + .dbf + .prj + .cpg).');
     }
-  }
-
-  // ====== 4) Sự kiện nút ======
-  document.getElementById('btnLoad').addEventListener('click', loadAndSimplify);
-
-  document.getElementById('btnDownload').addEventListener('click', () => {
-    if (!simplifiedGeoJSON) return;
-    const blob = new Blob([JSON.stringify(simplifiedGeoJSON)], {type:'application/json;charset=utf-8'});
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = 'dia_gioi_hcm_sua_font_simplify.geojson';
-    a.click();
-    URL.revokeObjectURL(url);
   });
+
+  const geoLayer = L.featureGroup([layer]).addTo(map);
+  map.fitBounds(geoLayer.getBounds());
+})();
+
+// ===== 5. Legend =====
+const legend = L.control({ position: "bottomleft" });
+legend.onAdd = function () {
+  const div = L.DomUtil.create("div", "legend");
+  div.innerHTML = `
+    <b>Chú giải</b><br>
+    <span style="display:inline-block;width:14px;height:14px;background:#2262CC;border:1px solid #2262CC;margin-right:4px"></span> Ranh địa giới<br>
+    <span style="display:inline-block;width:14px;height:14px;background:#FFD43B;border:1px solid #0B5ED7;margin-right:4px"></span> Khi chọn
+  `;
+  return div;
+};
+legend.addTo(map);
 </script>
 </body>
 </html>
