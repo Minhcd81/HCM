@@ -12,17 +12,17 @@
 <!-- GoogleMutant stable -->
 <script src="https://cdn.jsdelivr.net/npm/leaflet.gridlayer.googlemutant@0.10.2/Leaflet.GoogleMutant.min.js"></script>
 
-<!-- Leaflet Plugins -->
-<link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css"/>
+<!-- Plugins -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />
 <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
 
-<link rel="stylesheet" href="https://unpkg.com/leaflet-measure@3.1.0/dist/leaflet-measure.css"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet-measure@3.1.0/dist/leaflet-measure.css" />
 <script src="https://unpkg.com/leaflet-measure@3.1.0/dist/leaflet-measure.js"></script>
 
-<link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css" />
 <script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
 
-<link rel="stylesheet" href="https://unpkg.com/leaflet.locatecontrol@0.79.0/dist/L.Control.Locate.min.css"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet.locatecontrol@0.79.0/dist/L.Control.Locate.min.css" />
 <script src="https://unpkg.com/leaflet.locatecontrol@0.79.0/dist/L.Control.Locate.min.js"></script>
 
 <script src="https://unpkg.com/leaflet.browser.print/dist/leaflet.browser.print.min.js"></script>
@@ -30,142 +30,125 @@
 <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
 
 <style>
-html, body, #map { height:100%; margin:0; font-family:Segoe UI, Arial, sans-serif; }
-#search { position:absolute; top:10px; left:50px; z-index:1000; width:320px;
-  padding:6px 10px; border:1px solid #ccc; border-radius:6px; box-shadow:0 2px 4px rgba(0,0,0,.2); }
-.panel { position:absolute; top:10px; right:10px; background:rgba(255,255,255,.95);
-  padding:10px; border-radius:10px; box-shadow:0 2px 6px rgba(0,0,0,.2); font-size:13px; width:220px; }
-.panel button, .panel select { width:100%; margin-top:5px; padding:6px; }
-.legend { position:absolute; bottom:10px; left:10px; background:rgba(255,255,255,.9);
-  padding:8px 12px; border-radius:8px; box-shadow:0 2px 6px rgba(0,0,0,.2); font-size:13px; }
+html,body,#map{height:100%;margin:0;font-family:Segoe UI,Arial}
+#search{position:absolute;top:10px;left:10px;z-index:1000;width:320px;padding:6px 10px;border:1px solid #ccc;border-radius:6px;box-shadow:0 2px 4px rgba(0,0,0,.2);}
+.panel{position:absolute;top:10px;right:10px;background:rgba(255,255,255,.95);padding:10px;border-radius:10px;box-shadow:0 2px 6px rgba(0,0,0,.2);font-size:13px;width:230px;}
+.panel button,.panel select{width:100%;margin-top:4px;padding:6px;}
 </style>
 </head>
-
 <body>
 <input id="search" type="text" placeholder="🔎 Nhập địa chỉ (VD: 961 Hoàng Sa, Quận 3)" />
 <div id="map"></div>
 
 <div class="panel">
-  <b>Địa giới HCM – simplify</b><br>
-  <small>Nguồn: assets/hcm_admin_shp.zip</small><br>
-  <label>Độ đơn giản hóa:</label>
-  <select id="tol">
-    <option value="0.00005">5 m (chi tiết)</option>
-    <option value="0.0001" selected>10 m</option>
-    <option value="0.0002">20 m (nhẹ)</option>
-  </select>
-  <button id="load">📂 Nạp địa giới</button>
-  <button id="toggle">👁️ Ẩn/Hiện địa giới</button>
-  <button id="tools">⚙️ Ẩn/Hiện công cụ</button>
+<b>Địa giới HCM – simplify</b><br>
+Nguồn: <i>assets/hcm_admin_shp.zip</i><br>
+Độ đơn giản hóa:
+<select id="tol">
+  <option value="10">10 m (nhẹ)</option>
+  <option value="20">20 m (khuyến nghị)</option>
+  <option value="30">30 m (cao)</option>
+</select>
+<button id="load">📁 Nạp địa giới</button>
+<button id="toggle">👁️ Ẩn/Hiện địa giới</button>
+<button id="tools">⚙️ Ẩn/Hiện công cụ</button>
 </div>
 
-<script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyARhMzsywQPyQbrbgS6aFVb5sg7eSV34oA&libraries=places"></script>
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyARhMzsywQPyQbrbgS6aFVb5sg7eSV34oA&libraries=places&loading=async"></script>
+
 <script>
-window.onload = function() {
+window.onload = function(){
+  // ==== TẠO MAP ====
   const map = L.map('map',{center:[10.77,106.7],zoom:12});
 
-  // ===== Base maps =====
-  const gRoad = L.gridLayer.googleMutant({ type: "roadmap" });
-  const gSat  = L.gridLayer.googleMutant({ type: "satellite" });
-  const gHy   = L.gridLayer.googleMutant({ type: "hybrid" });
-  const osm   = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png');
-  const esriS = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}');
-  const esriI = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}');
-  gRoad.addTo(map);
+  // ==== BASE LAYERS ====
+  const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap'}).addTo(map);
+  const gRoad = L.gridLayer.googleMutant({type:'roadmap'});
+  const gSat = L.gridLayer.googleMutant({type:'satellite'});
+  const gHy = L.gridLayer.googleMutant({type:'hybrid'});
+  const esriSt = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}');
+  const esriImg = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}');
+  const bing = L.tileLayer('https://ecn.t{s}.tiles.virtualearth.net/tiles/a{q}.jpeg?g=1',{subdomains:['0','1','2','3']});
 
   L.control.layers({
     "Google Đường phố": gRoad,
     "Google Vệ tinh": gSat,
     "Google Hybrid": gHy,
     "OpenStreetMap": osm,
-    "Esri Streets": esriS,
-    "Esri Satellite": esriI
-  }, null, { position:"bottomleft" }).addTo(map);
+    "Esri Streets": esriSt,
+    "Esri Satellite": esriImg,
+    "Bing Maps": bing
+  }, null, {position:'bottomleft'}).addTo(map);
 
-  // ===== Công cụ =====
-  const gps = L.control.locate({ position:"topleft" }).addTo(map);
-  const measure = L.control.measure({ position:"topleft" }).addTo(map);
-  const drawnItems = new L.FeatureGroup().addTo(map);
-  new L.Control.Draw({ edit:{featureGroup: drawnItems} }).addTo(map);
-  map.on(L.Draw.Event.CREATED, e => drawnItems.addLayer(e.layer));
-  L.control.browserPrint({ position:"topleft" }).addTo(map);
-  L.Control.geocoder({ position:"topleft" }).addTo(map);
-  L.control.scale({ metric:true }).addTo(map);
+  // ==== CÔNG CỤ ====
+  const lc = L.control.locate({position:'topleft'}).addTo(map);
+  const measure = L.control.measure({position:'topleft',primaryLengthUnit:'kilometers'}).addTo(map);
+  const drawnItems = new L.FeatureGroup(); map.addLayer(drawnItems);
+  const drawControl = new L.Control.Draw({edit:{featureGroup:drawnItems}}); map.addControl(drawControl);
+  map.on(L.Draw.Event.CREATED,e=>drawnItems.addLayer(e.layer));
+  L.control.browserPrint({position:'topleft'}).addTo(map);
 
-  // Ẩn / hiện toàn bộ công cụ
-  let toolsVisible = true;
-  document.getElementById("tools").onclick = () => {
-    toolsVisible = !toolsVisible;
-    document.querySelectorAll(".leaflet-control").forEach(el=>{
-      if (!el.classList.contains("leaflet-control-layers"))
-        el.style.display = toolsVisible ? "" : "none";
-    });
-  };
+  // ==== SEARCH GOOGLE PLACES ====
+  const input=document.getElementById('search');
+  const autocomplete=new google.maps.places.Autocomplete(input,{componentRestrictions:{country:'vn'}});
+  autocomplete.addListener('place_changed',()=>{
+    const place=autocomplete.getPlace();
+    if(!place.geometry)return;
+    const loc=[place.geometry.location.lat(),place.geometry.location.lng()];
+    map.setView(loc,16);
+    L.marker(loc).addTo(map).bindPopup(`<b>${place.formatted_address}</b>`).openPopup();
+  });
 
-  // ===== Google Search Autocomplete =====
-  const input = document.getElementById("search");
-  const check = setInterval(()=>{
-    if (window.google && google.maps && google.maps.places) {
-      clearInterval(check);
-      const ac = new google.maps.places.Autocomplete(input, { types:["geocode"] });
-      ac.addListener("place_changed", ()=>{
-        const p = ac.getPlace();
-        if (!p.geometry) return;
-        const lat=p.geometry.location.lat(), lng=p.geometry.location.lng();
-        map.setView([lat,lng],16);
-        L.marker([lat,lng]).addTo(map).bindPopup(`<b>${p.formatted_address}</b>`).openPopup();
-      });
-    }
-  }, 500);
-
-  // ===== Địa giới hành chính =====
+  // ==== ĐỊA GIỚI ====
   let layer=null, visible=true;
-  const stDef = { color:"#1565C0", weight:1.2, fillOpacity:0.05 };
-  const stHigh = { color:"#F57C00", weight:3, fillColor:"#FFE082", fillOpacity:0.5 };
-  const popup = p => `<b>${p.ten_xa||"Không rõ"}</b><br>
-    Quận/Huyện: ${p.quan_huyen||"–"}<br>
-    Diện tích: ${p.dtich_km2||"–"} km²<br>
-    Dân số: ${p.dan_so?Number(p.dan_so).toLocaleString("vi-VN"):"–"} người<br>
-    Sáp nhập: ${p.sap_nhap||"–"}`;
+  const stDef={color:'#1565C0',weight:1.2,fillOpacity:0.05};
+  const stHigh={color:'#F57C00',weight:3,fillColor:'#FFF176',fillOpacity:0.5};
+  const popup=p=>`<b>${p.ten_xa||'Không rõ'}</b><br>Quận/Huyện: ${p.quan_huyen||'-'}<br>Diện tích: ${p.dtich_km2||'-'} km²<br>Dân số: ${p.dan_so?Number(p.dan_so).toLocaleString('vi-VN'):'-'} người`;
 
   async function loadBoundary(){
-    if (layer) map.removeLayer(layer);
-    const tol = parseFloat(document.getElementById("tol").value);
-    const data = await shp("assets/hcm_admin_shp.zip");
-    const simp = turf.simplify(data,{tolerance:tol,highQuality:false});
-    layer = L.geoJSON(simp,{
-      style:()=>stDef,
-      onEachFeature:(f,l)=>{
-        const p=f.properties;
-        l.bindTooltip(p.ten_xa||"");
-        l.on("click",()=>{
-          layer.resetStyle();
-          l.setStyle(stHigh);
-          L.popup({maxWidth:300})
-            .setLatLng(l.getBounds().getCenter())
-            .setContent(popup(p))
-            .openOn(map);
-        });
-      }
-    }).addTo(map);
-    map.fitBounds(layer.getBounds());
+    try{
+      console.log("⏳ Đang tải shapefile...");
+      const tol=parseFloat(document.getElementById("tol").value);
+      const res=await fetch("assets/hcm_admin_shp.zip",{cache:"no-store"});
+      if(!res.ok) throw new Error("Không thể tải shapefile!");
+      const blob=await res.blob();
+      const data=await shp(blob);
+      console.log("✅ Tải thành công shapefile");
+
+      if(layer) map.removeLayer(layer);
+      const simp=turf.simplify(data,{tolerance:tol,highQuality:false});
+      layer=L.geoJSON(simp,{
+        style:()=>stDef,
+        onEachFeature:(f,l)=>{
+          const p=f.properties;
+          l.bindTooltip(p.ten_xa||"");
+          l.on("click",()=>{
+            layer.resetStyle();
+            l.setStyle(stHigh);
+            L.popup({maxWidth:300})
+             .setLatLng(l.getBounds().getCenter())
+             .setContent(popup(p))
+             .openOn(map);
+          });
+        }
+      }).addTo(map);
+      map.fitBounds(layer.getBounds());
+    }catch(err){
+      console.error("❌ Lỗi:",err);
+      alert("⚠️ Không thể tải file địa giới hành chính. Vui lòng kiểm tra file ZIP hoặc thử reload trang.");
+    }
   }
 
-  document.getElementById("load").onclick = loadBoundary;
-  document.getElementById("toggle").onclick = () => {
-    if (!layer) return;
-    visible = !visible;
-    visible ? map.addLayer(layer) : map.removeLayer(layer);
+  document.getElementById("load").onclick=loadBoundary;
+  document.getElementById("toggle").onclick=()=>{
+    if(!layer) return;
+    visible=!visible;
+    visible?map.addLayer(layer):map.removeLayer(layer);
   };
-
-  // Legend
-  L.control({position:"bottomright"}).onAdd=function(){
-    const div=L.DomUtil.create("div","legend");
-    div.innerHTML=`<b>Chú giải</b><br>
-      <span style="display:inline-block;width:14px;height:14px;background:#1565C0;margin-right:6px"></span> Địa giới<br>
-      <span style="display:inline-block;width:14px;height:14px;background:#FFE082;margin-right:6px"></span> Khi chọn`;
-    return div;
-  }.addTo(map);
+  document.getElementById("tools").onclick=()=>{
+    const tl=document.querySelectorAll(".leaflet-control");
+    tl.forEach(e=>e.style.display=(e.style.display==="none")?"block":"none");
+  };
 };
 </script>
 </body>
