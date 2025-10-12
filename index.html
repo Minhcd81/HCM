@@ -2,144 +2,158 @@
 <html lang="vi">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>HCM WebGIS – Địa giới hành chính</title>
+<title>HCM WebGIS + Google & Địa giới hành chính</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<!-- Leaflet -->
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
-<!-- Plugins -->
-<link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />
-<script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
-
-<link rel="stylesheet" href="https://unpkg.com/leaflet-measure@3.1.0/dist/leaflet-measure.css" />
-<script src="https://unpkg.com/leaflet-measure@3.1.0/dist/leaflet-measure.js"></script>
-
-<link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css" />
-<script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
-
-<link rel="stylesheet" href="https://unpkg.com/leaflet.locatecontrol@0.79.0/dist/L.Control.Locate.min.css" />
-<script src="https://unpkg.com/leaflet.locatecontrol@0.79.0/dist/L.Control.Locate.min.js"></script>
-
-<script src="https://unpkg.com/leaflet.browser.print/dist/leaflet.browser.print.min.js"></script>
-
-<!-- GoogleMutant -->
-<script src="https://unpkg.com/leaflet.gridlayer.googlemutant@0.13.6/dist/Leaflet.GoogleMutant.min.js"></script>
-
+<!-- CSS -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css"/>
 <style>
-html,body,#map{height:100%;margin:0;font-family:Segoe UI,Arial}
-#search{position:absolute;top:10px;left:10px;z-index:1000;width:320px;padding:6px 10px;border:1px solid #ccc;border-radius:6px;box-shadow:0 2px 4px rgba(0,0,0,.2);}
-.panel{position:absolute;top:10px;right:10px;background:rgba(255,255,255,.95);padding:10px;border-radius:10px;box-shadow:0 2px 6px rgba(0,0,0,.2);font-size:13px;width:230px;}
-.panel button{width:100%;margin-top:5px;padding:6px;}
+  html, body, #map {height:100%; margin:0; padding:0;}
+  .leaflet-control-layers {
+    max-height: 250px;
+    overflow-y: auto;
+  }
 </style>
 </head>
 <body>
-<input id="search" type="text" placeholder="🔎 Nhập địa chỉ (VD: 961 Hoàng Sa, Quận 3)" />
 <div id="map"></div>
 
-<div class="panel">
-<b>Địa giới HCM – GeoJSON</b><br>
-Nguồn: <i>assets/TPHCM.geojson</i><br>
-<button id="toggle">👁️ Ẩn/Hiện địa giới</button>
-<button id="tools">⚙️ Ẩn/Hiện công cụ</button>
-</div>
+<!-- JS LIBRARIES -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
+<script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
 
-<!-- Google Maps API -->
-<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyARhMzsywQPyQbrbgS6aFVb5sg7eSV34oA&libraries=places&loading=async"></script>
+<!-- ✅ Google Maps API -->
+<script async
+    src="https://maps.googleapis.com/maps/api/js?key=AIzaSyARhMzsywQPyQbrbgS6aFVb5sg7eSV34oA&libraries=places">
+</script>
+
+<!-- ✅ GoogleMutant FIXED CDN with fallback -->
+<script src="https://cdn.jsdelivr.net/gh/IvanSanchez/Leaflet.GridLayer.GoogleMutant@master/dist/Leaflet.GoogleMutant.js"
+onerror="console.warn('⚠️ GoogleMutant CDN lỗi, thử fallback...'); 
+fetch('https://unpkg.com/leaflet.gridlayer.googlemutant@0.13.6/dist/Leaflet.GoogleMutant.min.js')
+.then(r=>r.text()).then(t=>eval(t));"></script>
 
 <script>
-window.onload = async function(){
+// ======================= KHỞI TẠO BẢN ĐỒ =========================
+let map = L.map('map', {
+  center: [10.776, 106.7],
+  zoom: 12,
+  zoomControl: true
+});
 
-  // ==== Khởi tạo bản đồ ====
-  const map = L.map('map',{center:[10.77,106.7],zoom:12});
+// ======================= LAYER GOOGLE + OSM =======================
+let gRoad, gSat, gHy;
+try {
+  gRoad = L.gridLayer.googleMutant({ type: 'roadmap' });
+  gSat  = L.gridLayer.googleMutant({ type: 'satellite' });
+  gHy   = L.gridLayer.googleMutant({ type: 'hybrid' });
+} catch (err) {
+  console.warn('⚠️ GoogleMutant chưa load, dùng OSM fallback.');
+  gRoad = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png');
+  gSat  = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png');
+  gHy   = L.tileLayer('https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png');
+}
 
-  // ==== Base layers ====
-  const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap'}).addTo(map);
-  const gRoad = L.gridLayer.googleMutant({type:'roadmap'});
-  const gSat = L.gridLayer.googleMutant({type:'satellite'});
-  const gHy = L.gridLayer.googleMutant({type:'hybrid'});
-  const esriSt = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}');
-  const esriImg = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}');
-  const bing = L.tileLayer('https://ecn.t{s}.tiles.virtualearth.net/tiles/a{q}.jpeg?g=1',{subdomains:['0','1','2','3']});
+let osmMap = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  maxZoom: 19, attribution: '&copy; OpenStreetMap'
+});
+let esriStreet = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
+  attribution: '&copy; Esri Streets'
+});
+let esriImage = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+  attribution: '&copy; Esri Imagery'
+});
+let bing = L.tileLayer('https://ecn.t{s}.tiles.virtualearth.net/tiles/a{q}.jpeg?g=1', {
+  subdomains: ['0','1','2','3'], attribution: '&copy; Bing'
+});
 
-  L.control.layers({
-    "Google Đường phố": gRoad,
-    "Google Vệ tinh": gSat,
-    "Google Hybrid": gHy,
-    "OpenStreetMap": osm,
-    "Esri Streets": esriSt,
-    "Esri Satellite": esriImg,
-    "Bing Maps": bing
-  }, null, {position:'bottomleft'}).addTo(map);
+// Add default layer
+osmMap.addTo(map);
 
-  // ==== Công cụ ====
-  L.control.locate({position:'topleft'}).addTo(map);
-  L.control.measure({position:'topleft',primaryLengthUnit:'kilometers'}).addTo(map);
-  const drawnItems = new L.FeatureGroup(); map.addLayer(drawnItems);
-  const drawControl = new L.Control.Draw({edit:{featureGroup:drawnItems}}); map.addControl(drawControl);
-  map.on(L.Draw.Event.CREATED,e=>drawnItems.addLayer(e.layer));
-  L.control.browserPrint({position:'topleft'}).addTo(map);
-
-  // ==== Search Google Places ====
-  const input=document.getElementById('search');
-  const autocomplete=new google.maps.places.Autocomplete(input,{componentRestrictions:{country:'vn'}});
-  autocomplete.addListener('place_changed',()=>{
-    const place=autocomplete.getPlace();
-    if(!place.geometry)return;
-    const loc=[place.geometry.location.lat(),place.geometry.location.lng()];
-    map.setView(loc,16);
-    L.marker(loc).addTo(map).bindPopup(`<b>${place.formatted_address}</b>`).openPopup();
-  });
-
-  // ==== Địa giới GeoJSON ====
-  let layer=null,visible=true;
-  const stDef={color:'#1565C0',weight:1.2,fillOpacity:0.05};
-  const stHigh={color:'#F57C00',weight:3,fillColor:'#FFF176',fillOpacity:0.5};
-  const popup=p=>`<b>${p.ten_xa||'Không rõ'}</b><br>
-  Quận/Huyện: ${p.quan_huyen||'-'}<br>
-  Diện tích: ${p.dtich_km2||'-'} km²<br>
-  Dân số: ${p.dan_so?Number(p.dan_so).toLocaleString('vi-VN'):'-'} người`;
-
-  try{
-    const res=await fetch("assets/TPHCM.geojson",{cache:"no-store"});
-    if(!res.ok) throw new Error("Không tải được GeoJSON!");
-    const data=await res.json();
-    layer=L.geoJSON(data,{
-      style:()=>stDef,
-      onEachFeature:(f,l)=>{
-        const p=f.properties;
-        l.bindTooltip(p.ten_xa||"");
-        l.on("mouseover",()=>l.setStyle({weight:3,color:"#FFD54F"}));
-        l.on("mouseout",()=>l.setStyle(stDef));
-        l.on("click",()=>{
-          layer.resetStyle();
-          l.setStyle(stHigh);
-          L.popup({maxWidth:300})
-           .setLatLng(l.getBounds().getCenter())
-           .setContent(popup(p))
-           .openOn(map);
-        });
+// ======================= ĐỊA GIỚI HÀNH CHÍNH =======================
+let hcmLayer;
+async function loadHCM() {
+  try {
+    const res = await fetch('assets/TPHCM.geojson');
+    const data = await res.json();
+    if (hcmLayer) map.removeLayer(hcmLayer);
+    hcmLayer = L.geoJSON(data, {
+      style: {color: "#ff0000", weight: 1.5, fillOpacity: 0.1},
+      onEachFeature: function (feature, layer) {
+        const info = feature.properties;
+        layer.bindPopup(
+          `<b>${info.ten_xa || ''}</b><br>` +
+          `${info.sap_nhap || ''}<br>` +
+          `${info.dtich_km2 ? info.dtich_km2 + ' km²' : ''}<br>` +
+          `${info.dan_so ? info.dan_so + ' người' : ''}`
+        );
       }
     }).addTo(map);
-    map.fitBounds(layer.getBounds());
-    console.log("✅ Đã tải địa giới hành chính HCM (GeoJSON)");
-  }catch(err){
-    console.error("❌ Lỗi tải GeoJSON:",err);
-    alert("⚠️ Không thể tải file địa giới hành chính. Vui lòng kiểm tra assets/TPHCM.geojson.");
+  } catch (err) {
+    alert("Không thể tải file địa giới hành chính. Kiểm tra assets/TPHCM.geojson");
+    console.error(err);
   }
+}
 
-  // ==== Nút điều khiển ====
-  document.getElementById("toggle").onclick=()=>{
-    if(!layer)return;
-    visible=!visible;
-    visible?map.addLayer(layer):map.removeLayer(layer);
-  };
-  document.getElementById("tools").onclick=()=>{
-    const tl=document.querySelectorAll(".leaflet-control");
-    tl.forEach(e=>e.style.display=(e.style.display==="none")?"block":"none");
-  };
+// ======================= CONTROL SEARCH (Google Places) =======================
+let input = L.DomUtil.create('input', 'search-box');
+input.type = 'text';
+input.placeholder = "🔍 Nhập địa chỉ (VD: 961 Hoàng Sa, Quận 3)";
+input.style = 'position:absolute;top:10px;left:50px;width:360px;z-index:9999;padding:4px;';
+document.body.appendChild(input);
+
+let autocomplete;
+setTimeout(() => {
+  if (window.google && google.maps.places) {
+    autocomplete = new google.maps.places.Autocomplete(input);
+    autocomplete.addListener('place_changed', () => {
+      const place = autocomplete.getPlace();
+      if (!place.geometry) return;
+      const lat = place.geometry.location.lat();
+      const lng = place.geometry.location.lng();
+      map.setView([lat, lng], 17);
+      L.marker([lat, lng]).addTo(map)
+        .bindPopup(`<b>${place.formatted_address}</b>`).openPopup();
+    });
+  } else {
+    console.warn("⚠️ Google Places API chưa sẵn sàng.");
+  }
+}, 2000);
+
+// ======================= CONTROL LAYER =======================
+const baseMaps = {
+  "🗺️ Google Đường phố": gRoad,
+  "🛰️ Google Vệ tinh": gSat,
+  "🌏 Google Hybrid": gHy,
+  "🌍 OpenStreetMap": osmMap,
+  "🗺️ Esri Streets": esriStreet,
+  "🛰️ Esri Image": esriImage,
+  "📷 Bing Map": bing
 };
+
+const overlayMaps = {
+  "Địa giới HCM": L.layerGroup()
+};
+
+L.control.layers(baseMaps, overlayMaps).addTo(map);
+
+// ======================= NÚT BẬT/TẮT =======================
+let panel = L.control({position: 'topright'});
+panel.onAdd = function() {
+  let div = L.DomUtil.create('div', 'leaflet-bar');
+  div.innerHTML = `
+    <button onclick="loadHCM()">🗺️ Nạp địa giới</button><br>
+    <button onclick="if(hcmLayer){map.removeLayer(hcmLayer)}">Ẩn địa giới</button>
+  `;
+  div.style.background = "#fff";
+  div.style.padding = "5px";
+  return div;
+};
+panel.addTo(map);
+
 </script>
 </body>
 </html>
