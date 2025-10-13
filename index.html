@@ -2,54 +2,35 @@
 <html lang="vi">
 <head>
 <meta charset="utf-8" />
-<title>HCM WebGIS – Địa giới hành chính TP.HCM</title>
+<title>HCM WebGIS – Quy hoạch & Địa giới hành chính TP.HCM</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<!-- Leaflet CSS -->
+<!-- Leaflet & plugin -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <link rel="stylesheet" href="https://unpkg.com/leaflet.locatecontrol/dist/L.Control.Locate.min.css"/>
 <link rel="stylesheet" href="https://unpkg.com/leaflet-measure/dist/leaflet-measure.css"/>
 <link rel="stylesheet" href="https://unpkg.com/leaflet-compass/dist/leaflet-compass.css"/>
 <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css"/>
 
-<!-- Google Places Autocomplete -->
-<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyARhMzsywQPyQbrbgS6aFVb5sg7eSV34oA&libraries=places"></script>
+<!-- Google Maps API -->
+<script src="https://maps.googleapis.com/maps/api/js?key=YOUR_API_KEY&libraries=places"></script>
 
 <style>
   html, body, #map {height:100%; margin:0; padding:0;}
   .leaflet-bar button {display:block; width:100%; border:none; background:white; padding:5px; cursor:pointer;}
   .leaflet-bar button:hover {background:#eee;}
-  .label-text {
-    font-size: 11px;
-    font-weight: bold;
-    color: #000;
-    text-shadow: 0 0 2px #fff, 0 0 4px #fff;
-  }
   .coords {
-    position: absolute;
-    bottom: 5px;
-    left: 10px;
-    background: rgba(255,255,255,0.9);
-    padding: 3px 8px;
-    border-radius: 4px;
-    font-size: 12px;
-    font-family: monospace;
-    z-index: 1000;
+    position:absolute; bottom:5px; left:10px;
+    background:rgba(255,255,255,0.9); padding:3px 8px;
+    border-radius:4px; font-size:12px; font-family:monospace; z-index:1000;
   }
   #search-box {
-    position: absolute;
-    top: 10px;
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 1500;
-    width: 300px;
+    position:absolute; top:10px; left:50%; transform:translateX(-50%);
+    z-index:1500; width:300px;
   }
   #search-input {
-    width: 100%;
-    padding: 6px 10px;
-    border-radius: 5px;
-    border: 1px solid #999;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    width:100%; padding:6px 10px; border-radius:5px; border:1px solid #999;
+    box-shadow:0 2px 5px rgba(0,0,0,0.2);
   }
 </style>
 </head>
@@ -67,136 +48,112 @@
 
 <script>
 window.onload = function() {
-  const map = L.map('map', {center: [10.776,106.7], zoom: 12});
+  const map = L.map('map', {center:[10.776,106.7], zoom:12});
 
   // --- Lớp nền ---
-  const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {attribution:'© OpenStreetMap'}).addTo(map);
-  const esriImagery = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {attribution:'© Esri'});
-  const googleHybrid = L.tileLayer('https://mts1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}&key=AIzaSyARhMzsywQPyQbrbgS6aFVb5sg7eSV34oA', {attribution:'© Google'});
+  const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap'}).addTo(map);
+  const googleStreet = L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}&key=AIzaSyARhMzsywQPyQbrbgS6aFVb5sg7eSV34oA',{attribution:'© Google'});
+  const googleHybrid = L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}&key=AIzaSyARhMzsywQPyQbrbgS6aFVb5sg7eSV34oA',{attribution:'© Google'});
+  const bingRoad = L.tileLayer('https://ecn.t{s}.tiles.virtualearth.net/tiles/r{q}.jpeg?g=1',{subdomains:['0','1','2','3'], attribution:'© Bing Maps'});
+  const bingAerial = L.tileLayer('https://ecn.t{s}.tiles.virtualearth.net/tiles/a{q}.jpeg?g=1',{subdomains:['0','1','2','3'], attribution:'© Bing Maps'});
+  const esriImagery = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{attribution:'© Esri'});
 
-  const baseMaps = {"🌍 OSM": osm, "🛰️ Esri Imagery": esriImagery, "🌤️ Google Hybrid": googleHybrid};
+  const baseMaps = {
+    "🗺️ OSM": osm,
+    "🌍 Google Street": googleStreet,
+    "🛰️ Google Hybrid": googleHybrid,
+    "🗾 Bing Road": bingRoad,
+    "🌄 Bing Aerial": bingAerial,
+    "🌤️ Esri Imagery": esriImagery
+  };
 
-  const phuongXaGroup = L.layerGroup(), quanHuyenGroup = L.layerGroup(), labelGroup = L.layerGroup();
-  let colored = [];
-  let measureCtrl, compassCtrl;
+  const hanhChinhGroup = L.layerGroup(), quyHoachGroup = L.layerGroup();
+  let colored = [], measureCtrl, compassCtrl;
 
-  // --- Nạp GeoJSON ---
-  async function loadHCM() {
-    const res = await fetch('assets/TPHCM.geojson');
-    const data = await res.json();
-    const searchList = [];
-
-    const layer = L.geoJSON(data, {
-      style: { color: "#ff6600", weight: 1, fillOpacity: 0.1 },
-      onEachFeature: (f, l) => {
-        const p = f.properties || {};
-        const ten = p.ten_xa || '';
-        const quan = p.quan_huyen || '';
-        const dt = (p.dtich_km2 ? p.dtich_km2.toFixed(2) : '-') + " km²";
-        const ds = p.dan_so ? p.dan_so.toLocaleString() + " người" : '-';
-        const sap = p.sap_nhap ? `<br><i>${p.sap_nhap}</i>` : '';
-        l.bindPopup(`<b>${ten}</b><br>${quan}<br>${dt}<br>${ds}${sap}`);
-        l.on('click', () => highlight(f, l));
-        searchList.push({ name: `${ten} - ${quan}`, layer: l });
-      }
-    }).addTo(phuongXaGroup);
-
-    addSearchControl(searchList);
-    phuongXaGroup.addTo(map);
+  // --- Hàm tô màu theo mã quy hoạch ---
+  function getColor(ma) {
+    if(!ma) return "#cccccc";
+    const colors = {
+      "ODT":"#e41a1c","ONT":"#fb9a99","CX":"#4daf4a","CXCL":"#a1d99b",
+      "DGT":"#999999","CC":"#ffcc00","MN":"#6baed6","HTKT":"#984ea3","TG":"#fdb462"
+    };
+    for(const [k,v] of Object.entries(colors)){ if(ma.includes(k)) return v; }
+    return "#ccc";
   }
 
-  // --- Tô màu vùng ---
-  function highlight(feature, layer){
-    const colors = ["#FFD700","#FFA500","#1E90FF","#32CD32","#FF69B4"];
-    const c = colors[Math.floor(Math.random()*colors.length)];
-    layer.setStyle({ fillColor:c, fillOpacity:0.5 });
-    colored.push({ feature: feature, layer: layer });
-  }
-  function clearColors(){
-    colored.forEach(obj => obj.layer.setStyle({ fillOpacity:0.1, fillColor:null }));
-    colored = [];
-  }
-  function exportGeoJSON(){
-    if(colored.length === 0){ alert("Chưa có vùng nào được tô màu!"); return; }
-    const geojson = { type: "FeatureCollection", features: colored.map(o => o.feature) };
-    const blob = new Blob([JSON.stringify(geojson, null, 2)], {type:'application/json'});
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.href = url; a.download = 'to_mau.geojson'; a.click();
-    URL.revokeObjectURL(url);
-  }
-
-  // --- Tìm kiếm phường/xã ---
-  function addSearchControl(list){
-    const geocoder = L.Control.geocoder({
-      defaultMarkGeocode: false,
-      placeholder: '🔍 Tìm phường/xã hoặc quận...',
-    }).addTo(map);
-    const input = geocoder._input;
-    input.addEventListener('input', function(){
-      const kw = this.value.toLowerCase();
-      const match = list.find(i => i.name.toLowerCase().includes(kw));
-      if(match){ const b = match.layer.getBounds(); map.fitBounds(b); match.layer.openPopup(); }
+  // --- Lớp hành chính ---
+  fetch('assets/TPHCM.geojson')
+    .then(res=>res.json())
+    .then(data=>{
+      const layer=L.geoJSON(data,{
+        style:{color:"#ff6600",weight:1,fillOpacity:0.1},
+        onEachFeature:(f,l)=>{
+          const p=f.properties||{};
+          const ten=p.ten_xa||'',quan=p.quan_huyen||'',dt=p.dtich_km2?`${p.dtich_km2.toFixed(2)} km²`:"-",ds=p.dan_so?p.dan_so.toLocaleString()+" người":"-";
+          const sap=p.sap_nhap?`<br><i>${p.sap_nhap}</i>`:"";
+          l.bindPopup(`<b>${ten}</b><br>${quan}<br>${dt}<br>${ds}${sap}`);
+        }
+      }).addTo(hanhChinhGroup);
     });
-  }
 
-  // --- Autocomplete địa chỉ ---
-  const input = document.getElementById('search-input');
-  const autocomplete = new google.maps.places.Autocomplete(input, {
-    componentRestrictions: { country: "vn" },
-    fields: ["geometry", "name"]
-  });
-  autocomplete.addListener("place_changed", () => {
-    const place = autocomplete.getPlace();
-    if (!place.geometry) return;
-    const loc = place.geometry.location;
-    map.setView([loc.lat(), loc.lng()], 17);
-    L.marker([loc.lat(), loc.lng()]).addTo(map)
-      .bindPopup(`<b>${place.name}</b>`).openPopup();
-  });
+  // --- Lớp quy hoạch ---
+  fetch('assets/QHPKSDD_SHAPE.json')
+    .then(res=>res.json())
+    .then(data=>{
+      const qh=L.geoJSON(data,{
+        style:f=>({
+          color:"#555",weight:0.3,fillColor:getColor(f.properties.MaQuyUoc),
+          fillOpacity:0.6
+        }),
+        onEachFeature:(f,l)=>{
+          const p=f.properties||{};
+          l.bindPopup(`<b>Mã:</b> ${p.MaQuyUoc||''}<br><b>Chức năng:</b> ${p.ChucNang||''}`);
+        }
+      }).addTo(quyHoachGroup);
+    });
 
-  // --- Tọa độ chuột ---
-  const coordsDiv = document.getElementById('coords');
-  map.on('mousemove', e => coordsDiv.innerHTML = `Lat: ${e.latlng.lat.toFixed(5)}, Lng: ${e.latlng.lng.toFixed(5)}`);
-
-  // --- Công cụ cơ bản ---
+  // --- Công cụ ---
   L.control.scale().addTo(map);
   L.control.locate({strings:{title:"Định vị GPS"}}).addTo(map);
 
-  // --- Bật tắt công cụ ---
   function toggleTools(){
-    if(measureCtrl){ map.removeControl(measureCtrl); map.removeControl(compassCtrl); measureCtrl = null; compassCtrl = null; }
-    else {
-      measureCtrl = L.control.measure({ primaryLengthUnit:'meters', secondaryLengthUnit:'kilometers', primaryAreaUnit:'sqmeters' }).addTo(map);
-      compassCtrl = L.control.compass({autoActive:true, showDigit:true, position:'topright'}).addTo(map);
+    if(measureCtrl){map.removeControl(measureCtrl);map.removeControl(compassCtrl);measureCtrl=null;compassCtrl=null;}
+    else{
+      measureCtrl=L.control.measure({primaryLengthUnit:'meters',secondaryLengthUnit:'kilometers',primaryAreaUnit:'sqmeters'}).addTo(map);
+      compassCtrl=L.control.compass({autoActive:true,showDigit:true,position:'topright'}).addTo(map);
     }
   }
 
-  // --- Layer control ---
-  L.control.layers(baseMaps, {"🗺️ Phường/Xã": phuongXaGroup}).addTo(map);
+  // --- Tìm kiếm địa chỉ ---
+  const input=document.getElementById('search-input');
+  const autocomplete=new google.maps.places.Autocomplete(input,{componentRestrictions:{country:"vn"},fields:["geometry","name"]});
+  autocomplete.addListener("place_changed",()=>{
+    const place=autocomplete.getPlace();
+    if(!place.geometry) return;
+    const loc=place.geometry.location;
+    map.setView([loc.lat(),loc.lng()],17);
+    L.marker([loc.lat(),loc.lng()]).addTo(map).bindPopup(`<b>${place.name}</b>`).openPopup();
+  });
+
+  // --- Hiển thị tọa độ chuột ---
+  const coordsDiv=document.getElementById('coords');
+  map.on('mousemove',e=>coordsDiv.innerHTML=`Lat:${e.latlng.lat.toFixed(5)}, Lng:${e.latlng.lng.toFixed(5)}`);
+
+  // --- Điều khiển lớp ---
+  const overlayMaps={"🗾 Địa giới hành chính":hanhChinhGroup,"📐 Quy hoạch 1/2000":quyHoachGroup};
+  L.control.layers(baseMaps,overlayMaps).addTo(map);
 
   // --- Thanh công cụ ---
-  const panel = L.control({position:'topright'});
-  panel.onAdd = function(){
-    const div = L.DomUtil.create('div','leaflet-bar');
-    div.innerHTML = `
-      <button onclick="window._clearColors()">🎨 Xóa tô màu</button>
-      <button onclick="window._exportGeoJSON()">💾 Xuất GeoJSON</button>
+  const panel=L.control({position:'topright'});
+  panel.onAdd=function(){
+    const div=L.DomUtil.create('div','leaflet-bar');
+    div.innerHTML=`
       <button onclick="window._toggleTools()">🔧 Công cụ</button>
     `;
     return div;
   };
   panel.addTo(map);
-  window._clearColors = clearColors;
-  window._exportGeoJSON = exportGeoJSON;
-  window._toggleTools = toggleTools;
-
-  // --- Auto ảnh vệ tinh ---
-  map.on('zoomend', () => {
-    if (map.getZoom() > 14 && !map.hasLayer(esriImagery)) map.addLayer(esriImagery);
-    else if (map.getZoom() <= 14 && map.hasLayer(esriImagery)) map.removeLayer(esriImagery);
-  });
-
-  loadHCM();
+  window._toggleTools=toggleTools;
 };
 </script>
 </body>
