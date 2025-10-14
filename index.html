@@ -4,37 +4,41 @@
 <meta charset="utf-8">
 <title>HCM WebGIS – Quy hoạch & Hành chính</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-<link rel="stylesheet" href="https://unpkg.com/leaflet-measure/dist/leaflet-measure.css">
-<link rel="stylesheet" href="https://unpkg.com/leaflet-compass/dist/leaflet-compass.css">
-<link rel="stylesheet" href="https://unpkg.com/leaflet.locatecontrol/dist/L.Control.Locate.min.css">
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet.locatecontrol/dist/L.Control.Locate.min.css"/>
+
 <style>
-html, body, #map { height: 100%; margin: 0; }
+html, body, #map { height:100%; margin:0; }
 #searchBox {
-  position: absolute; top: 10px; left: 50px; z-index: 1000;
-  width: 320px; padding: 6px 10px;
-  border: 1px solid #ccc; border-radius: 6px;
+  position:absolute; top:10px; left:50px; z-index:1000;
+  width:320px; padding:6px 10px;
+  border:1px solid #ccc; border-radius:6px;
 }
 .toolbox {
-  position: absolute; top: 10px; right: 10px; z-index: 1000;
-  background: white; padding: 6px 8px; border-radius: 8px;
-  box-shadow: 0 0 5px rgba(0,0,0,.3);
+  position:absolute; top:70px; left:10px; z-index:1000;
+  background:white; padding:6px 8px; border-radius:8px;
+  box-shadow:0 0 5px rgba(0,0,0,.3);
 }
-.toolbox button { margin: 2px; background: #0078ff; color: #fff; border: none; border-radius: 4px; padding: 5px 8px; cursor: pointer; }
-.toolbox button:hover { background: #005bbb; }
+.toolbox button {
+  margin:2px; background:#0078ff; color:white; border:none;
+  border-radius:4px; padding:5px 8px; cursor:pointer;
+}
+.toolbox button:hover { background:#005bbb; }
 #coords {
-  position: absolute; bottom: 5px; left: 5px; z-index: 9999;
-  background: rgba(255,255,255,0.8); padding: 3px 6px;
-  border-radius: 4px; font-size: 12px;
+  position:absolute; bottom:5px; left:5px; z-index:9999;
+  background:rgba(255,255,255,0.8); padding:3px 6px;
+  border-radius:4px; font-size:12px;
 }
 .legend {
-  background: white; padding: 8px; border-radius: 8px;
-  line-height: 1.4; font-size: 13px;
-  box-shadow: 0 0 5px rgba(0,0,0,0.3);
+  background:white; padding:8px; border-radius:8px;
+  line-height:1.4; font-size:13px;
+  box-shadow:0 0 5px rgba(0,0,0,0.3);
 }
-.legend i { width: 18px; height: 18px; float: left; margin-right: 6px; opacity: 0.7; }
+.legend i { width:18px; height:18px; float:left; margin-right:6px; opacity:0.7; }
 </style>
 </head>
+
 <body>
 <input id="searchBox" type="text" placeholder="Nhập địa chỉ hoặc tên phường...">
 <div id="map"></div>
@@ -45,17 +49,15 @@ html, body, #map { height: 100%; margin: 0; }
 <div id="coords"></div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="https://unpkg.com/leaflet-measure/dist/leaflet-measure.min.js"></script>
-<script src="https://unpkg.com/leaflet-compass/dist/leaflet-compass.min.js"></script>
 <script src="https://unpkg.com/leaflet.locatecontrol/dist/L.Control.Locate.min.js"></script>
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyARhMzsywQPyQbrbgS6aFVb5sg7eSV34oA&libraries=places"></script>
 
 <script>
-const map = L.map('map').setView([10.77, 106.68], 12);
+const map = L.map('map').setView([10.77,106.68],12);
 
-// ==== Base layers ====
+// ===== BASEMAPS =====
 const baseLayers = {
- "OpenStreetMap": L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'&copy; OpenStreetMap'}).addTo(map),
+ "OpenStreetMap": L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap'}).addTo(map),
  "Esri Street": L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',{attribution:'Esri'}),
  "Esri Imagery": L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{attribution:'Esri'}),
  "Google Streets": L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',{attribution:'Google'}),
@@ -63,35 +65,35 @@ const baseLayers = {
  "Bing Road": L.tileLayer('https://ecn.t{subdomain}.tiles.virtualearth.net/tiles/r{q}.jpeg?g=1&key=YOUR_BING_API_KEY',{subdomains:['0','1','2','3'],attribution:'Bing Maps'})
 };
 
-// ==== Overlay layers ====
+// ===== Overlay layers =====
 const overlayLayers = {};
 const highlightColors = ['#FFD700','#FF8C00','#FF6347','#8A2BE2','#1E90FF','#00CED1'];
 let selectedLayers = [];
 
-// --- Hành chính ---
+// === LỚP HÀNH CHÍNH ===
 fetch('assets/TPHCM.geojson')
-.then(res => res.json())
-.then(data => {
-  overlayLayers["Địa giới hành chính"] = L.geoJSON(data,{
-    style:{color:'#ff6600',weight:1,fillOpacity:0.05},
-    onEachFeature:(f,l)=>{
-      const p=f.properties;
-      const info=`<b>${p.ten_xa||''}</b><br>${p.sap_nhap||''}<br>${p.dtich_km2||''} km² – ${p.dan_so?Number(p.dan_so).toLocaleString('vi-VN')+' người':''}`;
-      l.bindPopup(info);
-      l.on('click',()=>{
-        const color=highlightColors[Math.floor(Math.random()*highlightColors.length)];
-        l.setStyle({fillColor:color,fillOpacity:0.5,color:'#000',weight:1.5});
-        selectedLayers.push(l);
-      });
-    }
-  }).addTo(map);
+.then(res=>res.json())
+.then(data=>{
+ overlayLayers["Địa giới hành chính"]=L.geoJSON(data,{
+   style:{color:'#ff6600',weight:1,fillOpacity:0.05},
+   onEachFeature:(f,l)=>{
+     const p=f.properties;
+     const info=`<b>${p.ten_xa||''}</b><br>${p.sap_nhap||''}<br>${p.dtich_km2||''} km² – ${p.dan_so?Number(p.dan_so).toLocaleString('vi-VN')+' người':''}`;
+     l.bindPopup(info);
+     l.on('click',()=>{
+       const color=highlightColors[Math.floor(Math.random()*highlightColors.length)];
+       l.setStyle({fillColor:color,fillOpacity:0.5,color:'#000',weight:1.5});
+       selectedLayers.push(l);
+     });
+   }
+ }).addTo(map);
 });
 
-// --- Quy hoạch ---
+// === LỚP QUY HOẠCH ===
 fetch('assets/QHPKSDD_SHAPE.json')
 .then(res=>res.json())
 .then(data=>{
- overlayLayers["Quy hoạch 1/2000"] = L.geoJSON(data,{
+ overlayLayers["Quy hoạch 1/2000"]=L.geoJSON(data,{
    style:f=>({color:'#555',weight:0.4,fillColor:'#999',fillOpacity:0.4}),
    onEachFeature:(f,l)=>{
      const p=f.properties;
@@ -100,13 +102,38 @@ fetch('assets/QHPKSDD_SHAPE.json')
  });
 });
 
-// === Controls ===
-setTimeout(()=>L.control.layers(baseLayers, overlayLayers,{collapsed:false}).addTo(map),1500);
-new L.Control.Measure({primaryLengthUnit:'meters',secondaryLengthUnit:'kilometers'}).addTo(map);
-new L.Control.Compass({autoActive:true,showDigit:true}).addTo(map);
-L.control.locate({position:'topleft',flyTo:true,strings:{title:'Vị trí của tôi'}}).addTo(map);
+// === LAYERS CONTROL ===
+setTimeout(()=>L.control.layers(baseLayers,overlayLayers,{collapsed:false}).addTo(map),1500);
 
-// === Search box ===
+// === TOOLS ===
+
+// Thước đo bằng chuột phải (plugin-free)
+let measureLine=null;
+map.on('contextmenu',e=>{
+  if(!measureLine){
+    measureLine=L.polyline([e.latlng],{color:'red'}).addTo(map);
+  }else{
+    const pts=measureLine.getLatLngs();
+    pts.push(e.latlng);
+    measureLine.setLatLngs(pts);
+    const dist=measureLine.getDistance ? measureLine.getDistance() : measureLine._distance || 0;
+  }
+});
+map.on('dblclick',()=>{
+  if(measureLine){
+    map.removeLayer(measureLine);
+    measureLine=null;
+  }
+});
+
+// Định vị GPS
+L.control.locate({
+ position:'bottomleft',
+ flyTo:true,
+ strings:{title:'Vị trí của tôi'}
+}).addTo(map);
+
+// === Search Box ===
 const input=document.getElementById('searchBox');
 const autocomplete=new google.maps.places.Autocomplete(input);
 autocomplete.addListener('place_changed',()=>{
@@ -118,7 +145,7 @@ autocomplete.addListener('place_changed',()=>{
   }
 });
 
-// === Xóa màu & Xuất GeoJSON ===
+// === CLEAR / EXPORT ===
 function clearColors(){
   selectedLayers.forEach(l=>l.setStyle({fillOpacity:0.05,fillColor:''}));
   selectedLayers=[];
@@ -132,12 +159,12 @@ function exportGeoJSON(){
   a.click();
 }
 
-// === Mouse coords ===
+// === MOUSE COORDS ===
 map.on('mousemove',e=>{
  document.getElementById('coords').innerText=`Lat:${e.latlng.lat.toFixed(5)}, Lng:${e.latlng.lng.toFixed(5)}`;
 });
 
-// === Legend ===
+// === LEGEND ===
 const legend=L.control({position:'bottomright'});
 legend.onAdd=function(){
  const div=L.DomUtil.create('div','legend');
