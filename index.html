@@ -2,173 +2,179 @@
 <html lang="vi">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>HCM WebGIS — Quy hoạch & Bản đồ hành chính</title>
+<title>HCM WebGIS – Địa chính & Quy hoạch 1/2000</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<!-- Leaflet core -->
+<!-- Leaflet CSS & Plugins -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet.locatecontrol/dist/L.Control.Locate.min.css"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet-measure/dist/leaflet-measure.css"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet-compass/dist/leaflet-compass.css"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css"/>
 
-<!-- Esri Leaflet -->
-<script src="https://unpkg.com/esri-leaflet@3.0.11/dist/esri-leaflet.js"></script>
-
-<!-- GoogleMutant (đã fix link) -->
-<script src="https://unpkg.com/leaflet.gridlayer.googlemutant@0.13.5/dist/Leaflet.GoogleMutant.js"></script>
-
-<!-- Bing layer -->
-<script src="https://unpkg.com/leaflet-bing-layer/leaflet-bing-layer.js"></script>
-
-<!-- Locate control -->
-<link rel="stylesheet" href="https://unpkg.com/leaflet.locatecontrol@0.79.0/dist/L.Control.Locate.min.css">
-<script src="https://unpkg.com/leaflet.locatecontrol@0.79.0/dist/L.Control.Locate.min.js"></script>
-
-<!-- Measure control -->
-<link rel="stylesheet" href="https://unpkg.com/leaflet-measure@3.3.0/dist/leaflet-measure.css">
-<script src="https://unpkg.com/leaflet-measure@3.3.0/dist/leaflet-measure.min.js"></script>
-
-<!-- Geoman (draw/edit) -->
-<link rel="stylesheet" href="https://unpkg.com/@geoman-io/leaflet-geoman-free@2.14.1/dist/leaflet-geoman.css">
-<script src="https://unpkg.com/@geoman-io/leaflet-geoman-free@2.14.1/dist/leaflet-geoman.min.js"></script>
-
-<!-- Compass -->
-<link rel="stylesheet" href="https://unpkg.com/leaflet-compass@1.5.1/dist/leaflet-compass.css" />
-<script src="https://unpkg.com/leaflet-compass@1.5.1/dist/leaflet-compass.min.js"></script>
-
-<!-- FileSaver -->
-<script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
+<!-- Google Places -->
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyARhMzsywQPyQbrbgS6aFVb5sg7eSV34oA&libraries=places"></script>
 
 <style>
-html, body, #map { height:100%; margin:0; }
-.topbar{position:absolute;left:64px;top:10px;z-index:1000;display:flex;gap:8px;}
-.btn{background:#1f6feb;color:#fff;border:none;padding:8px 12px;border-radius:8px;font-weight:600;cursor:pointer;}
-.btn.secondary{background:#6e7781;}
-#searchBox{width:380px;background:#fff;border-radius:12px;padding:8px 12px;box-shadow:0 2px 10px rgba(0,0,0,.15);}
-.layers-card{position:absolute;right:10px;top:10px;z-index:1000;background:#fff;border-radius:12px;padding:12px;}
-.coords{position:absolute;left:10px;bottom:6px;z-index:900;background:#fff;padding:4px 8px;border-radius:8px;font-size:12px;}
+html,body,#map{height:100%;margin:0;padding:0;}
+#search-box{position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:1500;width:320px;}
+#search-input{width:100%;padding:6px 10px;border-radius:6px;border:1px solid #aaa;box-shadow:0 2px 5px rgba(0,0,0,0.3);}
+.coords{position:absolute;bottom:5px;left:10px;background:rgba(255,255,255,0.9);padding:3px 8px;border-radius:4px;font-size:12px;font-family:monospace;z-index:1000;}
+.leaflet-bar button{display:block;width:100%;border:none;background:white;padding:6px;cursor:pointer;}
+.leaflet-bar button:hover{background:#eee;}
+#legend{position:absolute;right:10px;bottom:10px;background:white;padding:8px 10px;border-radius:8px;font-size:12px;box-shadow:0 2px 5px rgba(0,0,0,0.3);}
+#legend i{display:inline-block;width:14px;height:14px;margin-right:5px;vertical-align:middle;}
 </style>
 </head>
 <body>
+<div id="search-box"><input id="search-input" type="text" placeholder="🔍 Tìm địa chỉ hoặc phường/xã..."></div>
 <div id="map"></div>
-
-<div class="topbar">
-  <input id="searchBox" placeholder="Nhập địa chỉ hoặc tên phường..." />
-  <button id="clearPaint" class="btn">🧹 Xóa tô màu</button>
-  <button id="exportGeoJSON" class="btn secondary">📦 Xuất GeoJSON</button>
+<div id="coords" class="coords">Lat: --, Lng: --</div>
+<div id="legend">
+  <b>Chú giải loại đất</b><br>
+  <i style="background:#e41a1c"></i> Đất ở (ODT/ONT)<br>
+  <i style="background:#4daf4a"></i> Cây xanh (CX)<br>
+  <i style="background:#999"></i> Giao thông (DGT)<br>
+  <i style="background:#ffcc00"></i> Công cộng (CC)<br>
+  <i style="background:#6baed6"></i> Mặt nước (MN)<br>
+  <i style="background:#984ea3"></i> Hạ tầng kỹ thuật (HTKT)<br>
+  <i style="background:#fdb462"></i> Tôn giáo (TG)
 </div>
 
-<div class="layers-card">
-  <b>Basemap</b><br/>
-  <label><input type="radio" name="base" value="osm" checked> OpenStreetMap</label><br/>
-  <label><input type="radio" name="base" value="esriStreet"> Esri Street</label><br/>
-  <label><input type="radio" name="base" value="esriImg"> Esri Imagery</label><br/>
-  <label><input type="radio" name="base" value="gStreet"> Google Street</label><br/>
-  <label><input type="radio" name="base" value="gHybrid"> Google Hybrid</label><br/>
-  <label><input type="radio" name="base" value="bingRoad"> Bing Road</label>
-</div>
-
-<div class="coords" id="coords">Lat: —, Lng: —</div>
+<!-- JS -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.locatecontrol/dist/L.Control.Locate.min.js"></script>
+<script src="https://unpkg.com/leaflet-measure/dist/leaflet-measure.js"></script>
+<script src="https://unpkg.com/leaflet-compass/dist/leaflet-compass.min.js"></script>
+<script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
 
 <script>
-/* ====== MAP INIT ====== */
-const map = L.map('map').setView([10.776, 106.700], 12);
+window.onload = function(){
+  const map = L.map('map',{center:[10.776,106.7],zoom:12});
 
-// Base layers
-const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
-  maxZoom:20, attribution:'&copy; OpenStreetMap'
-}).addTo(map);
-const esriStreet = L.esri.basemapLayer('Streets');
-const esriImg = L.esri.basemapLayer('Imagery');
+  // --- Lớp nền ---
+  const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap'}).addTo(map);
+  const esriImagery = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{attribution:'© Esri'});
+  const googleHybrid = L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}&key=AIzaSyARhMzsywQPyQbrbgS6aFVb5sg7eSV34oA',{attribution:'© Google'});
 
-// GoogleMutant layers
-if (!L.gridLayer.googleMutant) {
-  alert("⚠️ Không thể tải GoogleMutant. Kiểm tra mạng hoặc CDN!");
-}
-let gStreet = L.gridLayer.googleMutant({ type:'roadmap' });
-let gHybrid = L.gridLayer.googleMutant({ type:'hybrid' });
+  const baseMaps = {"🌍 OSM":osm,"🛰️ Esri Imagery":esriImagery,"🌤️ Google Hybrid":googleHybrid};
 
-// Bing
-const bingRoad = L.tileLayer.bing({
-  bingMapsKey:'YOUR_BING_API_KEY',
-  imagerySet:'Road'
-});
+  const phuongXaGroup=L.layerGroup(),quyHoachGroup=L.layerGroup();
+  let colored=[],measureCtrl,compassCtrl;
 
-// Layer switcher
-document.querySelectorAll('input[name="base"]').forEach(r=>{
-  r.addEventListener('change',()=>{
-    [osm,esriStreet,esriImg,gStreet,gHybrid,bingRoad].forEach(l=>{
-      if(map.hasLayer(l)) map.removeLayer(l);
+  // --- Nạp địa giới hành chính ---
+  fetch('assets/TPHCM.geojson').then(r=>r.json()).then(data=>{
+    const layer=L.geoJSON(data,{
+      style:{color:"#ff6600",weight:1,fillOpacity:0.1},
+      onEachFeature:(f,l)=>{
+        const p=f.properties||{};
+        const name=p.ten_xa||'';
+        const q=p.quan_huyen||'';
+        const dt=(p.dtich_km2?p.dtich_km2.toFixed(2):'-')+" km²";
+        const ds=p.dan_so?p.dan_so.toLocaleString()+" người":'-';
+        const sap=p.sap_nhap?`<i>${p.sap_nhap}</i>`:'';
+        l.bindPopup(`<b>${name}</b><br>${q}<br>${dt}<br>${ds}<br>${sap}`);
+        l.on('click',()=>highlight(f,l));
+      }
     });
-    switch(r.value){
-      case 'osm': osm.addTo(map); break;
-      case 'esriStreet': esriStreet.addTo(map); break;
-      case 'esriImg': esriImg.addTo(map); break;
-      case 'gStreet': gStreet.addTo(map); break;
-      case 'gHybrid': gHybrid.addTo(map); break;
-      case 'bingRoad': bingRoad.addTo(map); break;
-    }
+    phuongXaGroup.addLayer(layer).addTo(map);
+    addSearchControl(data.features);
   });
-});
 
-// Locate + Measure + Compass
-L.control.locate({ position:'topleft', strings:{title:'Định vị GPS'} }).addTo(map);
-L.control.measure({ primaryLengthUnit:'meters', primaryAreaUnit:'sqmeters' }).addTo(map);
-L.control.compass({autoActive:true, position:'topright'}).addTo(map);
+  // --- Quy hoạch 1/2000 ---
+  fetch('assets/QHPKSDD_SHAPE.json').then(r=>r.json()).then(data=>{
+    const layer=L.geoJSON(data,{
+      style:f=>({color:'#555',weight:0.3,fillColor:colorByCode(f.properties.MaQuyUoc||''),fillOpacity:0.5}),
+      onEachFeature:(f,l)=>{
+        const p=f.properties||{};
+        l.bindPopup(`<b>${p.MaQuyUoc||''}</b><br>${p.TenLoaiDat||''}`);
+      }
+    });
+    quyHoachGroup.addLayer(layer);
+  });
 
-// Show coordinates
-map.on('mousemove', e=>{
-  document.getElementById('coords').textContent =
-    `Lat: ${e.latlng.lat.toFixed(5)}, Lng: ${e.latlng.lng.toFixed(5)}`;
-});
-
-/* ====== GOOGLE PLACES AUTOCOMPLETE ====== */
-function initGoogleAutocomplete(){
-  const input = document.getElementById('searchBox');
-  if(!window.google || !google.maps || !google.maps.places){
-    console.warn('Google Places chưa sẵn sàng — fallback Nominatim');
-    enableNominatimSearch();
-    return;
+  function colorByCode(code){
+    const lut={'ODT':'#e41a1c','ONT':'#e41a1c','CX':'#4daf4a','DGT':'#999','CC':'#ffcc00','MN':'#6baed6','HTKT':'#984ea3','TG':'#fdb462'};
+    for(const k in lut)if(code.includes(k))return lut[k];
+    return '#ccc';
   }
-  const autocomplete = new google.maps.places.Autocomplete(input,{ componentRestrictions:{ country:'vn' }});
-  autocomplete.addListener('place_changed',()=>{
-    const place = autocomplete.getPlace();
-    if(place?.geometry?.location){
-      const lat = place.geometry.location.lat();
-      const lng = place.geometry.location.lng();
-      map.setView([lat,lng],17);
-      L.marker([lat,lng]).addTo(map);
-    }
+
+  // --- Tô màu vùng ---
+  function highlight(f,l){
+    const c=['#FFD700','#32CD32','#1E90FF','#FF69B4','#FFA500'][Math.floor(Math.random()*5)];
+    l.setStyle({fillColor:c,fillOpacity:0.5});
+    colored.push(f);
+  }
+  function clearColors(){
+    phuongXaGroup.eachLayer(l=>l.setStyle&&l.setStyle({fillOpacity:0.1,fillColor:null}));
+    colored=[];
+  }
+  function exportGeoJSON(){
+    if(!colored.length)return alert("Chưa có vùng nào được tô!");
+    const blob=new Blob([JSON.stringify({type:"FeatureCollection",features:colored},null,2)],{type:"application/json"});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement("a");a.href=url;a.download="to_mau.geojson";a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  // --- Search bằng Leaflet geocoder ---
+  function addSearchControl(features){
+    const list=features.map(f=>({name:`${f.properties.ten_xa} - ${f.properties.quan_huyen}`,layer:f}));
+    const g=L.Control.geocoder({defaultMarkGeocode:false,placeholder:'🔍 Tìm phường/xã hoặc quận...'}).addTo(map);
+    const input=g._input;
+    input.addEventListener('input',function(){
+      const kw=this.value.toLowerCase();
+      const m=list.find(i=>i.name.toLowerCase().includes(kw));
+      if(m){const b=L.geoJSON(m.layer).getBounds();map.fitBounds(b);}
+    });
+  }
+
+  // --- Google Autocomplete ---
+  const input=document.getElementById("search-input");
+  const ac=new google.maps.places.Autocomplete(input,{componentRestrictions:{country:"vn"}});
+  ac.addListener("place_changed",()=>{
+    const p=ac.getPlace();
+    if(!p.geometry)return;
+    const lat=p.geometry.location.lat(),lng=p.geometry.location.lng();
+    map.setView([lat,lng],17);
+    L.marker([lat,lng]).addTo(map).bindPopup(p.formatted_address||p.name).openPopup();
   });
-}
 
-// Fallback OSM search
-function enableNominatimSearch(){
-  const input = document.getElementById('searchBox');
-  input.addEventListener('keydown', async (ev)=>{
-    if(ev.key==='Enter'){
-      const q = input.value.trim();
-      if(!q) return;
-      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}`);
-      const data = await res.json();
-      if(data[0]){
-        const lat = +data[0].lat, lon = +data[0].lon;
-        map.setView([lat,lon],17);
-        L.marker([lat,lon]).addTo(map).bindPopup(data[0].display_name).openPopup();
-      } else alert('Không tìm thấy kết quả.');
+  // --- Công cụ cơ bản ---
+  L.control.layers(baseMaps,{"🗺️ Hành chính":phuongXaGroup,"📐 Quy hoạch 1/2000":quyHoachGroup}).addTo(map);
+  L.control.locate({strings:{title:"Định vị GPS"}}).addTo(map);
+  L.control.scale().addTo(map);
+
+  const coordsDiv=document.getElementById("coords");
+  map.on("mousemove",e=>coordsDiv.textContent=`Lat:${e.latlng.lat.toFixed(5)}, Lng:${e.latlng.lng.toFixed(5)}`);
+
+  // --- Nút công cụ bên phải ---
+  const panel=L.control({position:'topright'});
+  panel.onAdd=function(){
+    const d=L.DomUtil.create('div','leaflet-bar');
+    d.innerHTML=`
+      <button onclick="window._clear()">🎨 Xóa tô</button>
+      <button onclick="window._export()">💾 Xuất GeoJSON</button>
+      <button onclick="window._toggle()">🧭 Công cụ</button>`;
+    return d;
+  };
+  panel.addTo(map);
+
+  window._clear=clearColors;
+  window._export=exportGeoJSON;
+  window._toggle=function(){
+    if(measureCtrl){map.removeControl(measureCtrl);map.removeControl(compassCtrl);measureCtrl=null;compassCtrl=null;}
+    else{
+      measureCtrl=L.control.measure({primaryLengthUnit:'meters',primaryAreaUnit:'sqmeters'}).addTo(map);
+      compassCtrl=L.control.compass({autoActive:true,position:'topright'}).addTo(map);
     }
+  };
+
+  map.on('zoomend',()=>{
+    if(map.getZoom()>14&&!map.hasLayer(esriImagery))map.addLayer(esriImagery);
+    else if(map.getZoom()<=14&&map.hasLayer(esriImagery))map.removeLayer(esriImagery);
   });
-}
-
-/* ====== EXPORT DEMO ====== */
-document.getElementById('clearPaint').onclick = ()=>alert('Demo: Xóa tô màu');
-document.getElementById('exportGeoJSON').onclick = ()=>alert('Demo: Xuất GeoJSON');
-
-/* ====== LOAD GOOGLE MAPS API ====== */
-window.addEventListener('load',()=>{
-  const s = document.createElement('script');
-  s.src = "https://maps.googleapis.com/maps/api/js?key=AIzaSyARhMzsywQPyQbrbgS6aFVb5sg7eSV34oA&libraries=places";
-  s.onload = initGoogleAutocomplete;
-  document.body.appendChild(s);
-});
+};
 </script>
 </body>
 </html>
