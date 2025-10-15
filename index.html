@@ -9,11 +9,11 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-<!-- Esri Leaflet (Esri basemaps) -->
+<!-- Esri Leaflet -->
 <script src="https://unpkg.com/esri-leaflet@3.0.11/dist/esri-leaflet.js"></script>
 
-<!-- GoogleMutant (Google base layers) -->
-<script src="https://cdn.jsdelivr.net/npm/leaflet.gridlayer.googlemutant@0.13.5/Leaflet.GoogleMutant.min.js"></script>
+<!-- GoogleMutant -->
+<script src="https://unpkg.com/leaflet.gridlayer.googlemutant@0.13.5/Leaflet.GoogleMutant.js"></script>
 
 <!-- Bing layer -->
 <script src="https://unpkg.com/leaflet-bing-layer/leaflet-bing-layer.js"></script>
@@ -34,90 +34,28 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet-compass@1.5.1/dist/leaflet-compass.css" />
 <script src="https://unpkg.com/leaflet-compass@1.5.1/dist/leaflet-compass.min.js"></script>
 
-<!-- FileSaver for export -->
+<!-- FileSaver -->
 <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
 
-<!-- Simple CSS -->
 <style>
-  html, body, #map { height:100%; margin:0; }
-  .topbar {
-    position: absolute; left: 64px; top: 10px; z-index: 1000;
-    display:flex; gap:8px; flex-wrap: wrap;
-  }
-  .btn {
-    background:#1f6feb; color:#fff; border:none; padding:8px 12px; border-radius:8px;
-    font-weight:600; box-shadow:0 2px 8px rgba(0,0,0,.15); cursor:pointer;
-  }
-  .btn.secondary { background:#6e7781; }
-  .panel {
-    position:absolute; left:10px; top:10px; z-index:1100;
-  }
-  .slide-toggle{
-    background:#0ea5e9; color:#fff; border:none; border-radius:24px; padding:10px 14px; font-weight:700;
-    box-shadow:0 2px 8px rgba(0,0,0,.2); cursor:pointer;
-  }
-  .side-card{
-    width:320px; max-width:86vw; background:#083344; color:#ecfeff; border-radius:14px;
-    padding:14px; box-shadow:0 10px 24px rgba(0,0,0,.25); display:none;
-  }
-  .side-card h3{ margin:0 0 10px; font-size:16px; }
-  .side-card label{ display:block; font-size:13px; margin:8px 0 2px; opacity:.9 }
-  .side-card input, .side-card select{ width:100%; padding:8px 10px; border-radius:10px; border:none; outline:none; }
-  #searchBox{
-    width:380px; max-width:60vw; background:#fff; border-radius:12px; padding:8px 12px;
-    box-shadow:0 2px 10px rgba(0,0,0,.15);
-  }
-  .layers-card{
-    position:absolute; right:10px; top:10px; z-index:1000;
-    background:#fff; border-radius:12px; padding:12px; box-shadow:0 10px 24px rgba(0,0,0,.2);
-    line-height:1.7; font-size:14px;
-  }
-  .legend{
-    position:absolute; right:10px; bottom:26px; z-index:900;
-    background:#fff; border-radius:12px; padding:12px; box-shadow:0 6px 18px rgba(0,0,0,.18);
-    font-size:14px;
-  }
-  .legend .row{ display:flex; align-items:center; gap:8px; margin:4px 0; }
-  .swatch{ width:16px; height:16px; border-radius:4px; border:1px solid rgba(0,0,0,.2); }
-  .coords {
-    position:absolute; left:10px; bottom:6px; z-index:900;
-    background:#fff; padding:4px 8px; border-radius:8px; font-size:12px; box-shadow:0 2px 8px rgba(0,0,0,.15);
-  }
-  .leaflet-control-locate { margin-top:48px; }/* đẩy nút GPS xuống dưới cụm zoom */
-  @media (max-width: 680px){
-    #searchBox{ width:220px; }
-  }
+html, body, #map { height:100%; margin:0; }
+.topbar{position:absolute;left:64px;top:10px;z-index:1000;display:flex;gap:8px;}
+.btn{background:#1f6feb;color:#fff;border:none;padding:8px 12px;border-radius:8px;font-weight:600;cursor:pointer;}
+.btn.secondary{background:#6e7781;}
+#searchBox{width:380px;background:#fff;border-radius:12px;padding:8px 12px;box-shadow:0 2px 10px rgba(0,0,0,.15);}
+.layers-card{position:absolute;right:10px;top:10px;z-index:1000;background:#fff;border-radius:12px;padding:12px;}
+.coords{position:absolute;left:10px;bottom:6px;z-index:900;background:#fff;padding:4px 8px;border-radius:8px;font-size:12px;}
 </style>
 </head>
 <body>
 <div id="map"></div>
 
-<!-- Top controls -->
 <div class="topbar">
   <input id="searchBox" placeholder="Nhập địa chỉ hoặc tên phường..." />
   <button id="clearPaint" class="btn">🧹 Xóa tô màu</button>
   <button id="exportGeoJSON" class="btn secondary">📦 Xuất GeoJSON</button>
 </div>
 
-<!-- Left slide panel: TSBĐ / TSSS -->
-<div class="panel">
-  <button id="toggleSide" class="slide-toggle">TSBĐ / TSSS</button>
-  <div id="sideCard" class="side-card">
-    <h3>Nhập nhanh tọa độ / ghi chú</h3>
-    <label>TSBĐ:</label>
-    <input id="tsbd" placeholder="Nhấp bản đồ để copy Lat,Lng hoặc tự nhập..." />
-    <label>TSSS 1:</label><input id="tsss1" placeholder="Nhấp bản đồ để copy Lat,Lng..." />
-    <label>TSSS 2:</label><input id="tsss2" placeholder="Nhấp bản đồ để copy Lat,Lng..." />
-    <label>TSSS 3:</label><input id="tsss3" placeholder="Nhấp bản đồ để copy Lat,Lng..." />
-    <label>Kiểu nền Google (khi chọn Google):</label>
-    <select id="gKind">
-      <option value="roadmap">Đường phố</option>
-      <option value="hybrid">Hybrid</option>
-    </select>
-  </div>
-</div>
-
-<!-- Right layers -->
 <div class="layers-card">
   <b>Basemap</b><br/>
   <label><input type="radio" name="base" value="osm" checked> OpenStreetMap</label><br/>
@@ -126,231 +64,60 @@
   <label><input type="radio" name="base" value="gStreet"> Google Street</label><br/>
   <label><input type="radio" name="base" value="gHybrid"> Google Hybrid</label><br/>
   <label><input type="radio" name="base" value="bingRoad"> Bing Road</label>
-  <hr/>
-  <label><input type="checkbox" id="chkAdmin" checked> Địa giới hành chính</label><br/>
-  <label><input type="checkbox" id="chkQH"> Quy hoạch 1/2000</label>
 </div>
 
-<!-- Legend Quy hoạch -->
-<div class="legend" id="legendQH" style="display:none;">
-  <b>Chú giải loại đất</b>
-  <div class="row"><span class="swatch" style="background:#f59e0b"></span> Đất ở (ODT/ONT)</div>
-  <div class="row"><span class="swatch" style="background:#22c55e"></span> Cây xanh (CX)</div>
-  <div class="row"><span class="swatch" style="background:#9ca3af"></span> Giao thông (DGT)</div>
-  <div class="row"><span class="swatch" style="background:#fde047"></span> Công cộng (CC)</div>
-  <div class="row"><span class="swatch" style="background:#60a5fa"></span> Mặt nước (MN)</div>
-  <div class="row"><span class="swatch" style="background:#a78bfa"></span> Hạ tầng kỹ thuật (HTKT)</div>
-  <div class="row"><span class="swatch" style="background:#06b6d4"></span> Tôn giáo (TG)</div>
-</div>
-
-<!-- Coords -->
 <div class="coords" id="coords">Lat: —, Lng: —</div>
 
 <script>
-/* ====== CONFIG ====== */
-const BING_KEY = 'YOUR_BING_API_KEY'; // <- điền key của anh
-const GOOGLE_MUTANT_OPTIONS = {type: 'roadmap'}; // street
-const GOOGLE_MUTANT_OPTIONS_HYBRID = {type: 'hybrid'};
+/* ====== MAP INIT ====== */
+const map = L.map('map').setView([10.776, 106.700], 12);
 
-// Màu tô khi click hành chính (xoay vòng)
-const PAINT_PALETTE = ['#fbbf24','#f97316','#ef4444','#a855f7','#2563eb','#06b6d4'];
-let paintIdx = 0;
-
-/* ====== MAP ====== */
-const map = L.map('map', { zoomControl:true }).setView([10.776,106.700], 12);
-
-// Basemaps
+// Base layers
 const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
-  maxZoom: 20, attribution: '&copy; OpenStreetMap'
+  maxZoom:20, attribution:'&copy; OpenStreetMap'
 }).addTo(map);
-
 const esriStreet = L.esri.basemapLayer('Streets');
 const esriImg = L.esri.basemapLayer('Imagery');
 
-let gStreet = L.gridLayer.googleMutant(GOOGLE_MUTANT_OPTIONS);
-let gHybrid = L.gridLayer.googleMutant(GOOGLE_MUTANT_OPTIONS_HYBRID);
+// GoogleMutant layers
+let gStreet = L.gridLayer.googleMutant({ type:'roadmap' });
+let gHybrid = L.gridLayer.googleMutant({ type:'hybrid' });
 
+// Bing
 const bingRoad = L.tileLayer.bing({
-  bingMapsKey: BING_KEY,
-  imagerySet: 'Road'
+  bingMapsKey:'YOUR_BING_API_KEY',
+  imagerySet:'Road'
 });
 
-// Radio basemap
+// Layer switcher
 document.querySelectorAll('input[name="base"]').forEach(r=>{
-  r.addEventListener('change', () => {
-    [osm,esriStreet,esriImg,gStreet,gHybrid,bingRoad].forEach(l => { if(map.hasLayer(l)) map.removeLayer(l); });
-    const v = r.value;
-    if(v==='osm') osm.addTo(map);
-    else if(v==='esriStreet') esriStreet.addTo(map);
-    else if(v==='esriImg') esriImg.addTo(map);
-    else if(v==='gStreet') gStreet.addTo(map);
-    else if(v==='gHybrid') gHybrid.addTo(map);
-    else if(v==='bingRoad') bingRoad.addTo(map);
-  });
-});
-
-// Change Google kind from panel
-document.getElementById('gKind').addEventListener('change', (e)=>{
-  const kind = e.target.value==='hybrid' ? GOOGLE_MUTANT_OPTIONS_HYBRID : GOOGLE_MUTANT_OPTIONS;
-  // re-create to apply change
-  if(map.hasLayer(gStreet)) map.removeLayer(gStreet);
-  if(map.hasLayer(gHybrid)) map.removeLayer(gHybrid);
-  gStreet = L.gridLayer.googleMutant({type:'roadmap'});
-  gHybrid = L.gridLayer.googleMutant({type:'hybrid'});
-});
-
-// Locate control (dưới cụm zoom nhờ CSS margin-top)
-L.control.locate({
-  position:'topleft',
-  strings:{ title:'Định vị GPS' },
-  flyTo:true, keepCurrentZoomLevel:false
-}).addTo(map);
-
-// Measure
-L.control.measure({
-  primaryLengthUnit: 'meters',
-  primaryAreaUnit: 'sqmeters',
-}).addTo(map);
-
-// Geoman draw/edit
-map.pm.addControls({
-  position: 'topleft',
-  drawCircle: false
-});
-
-// Compass
-L.control.compass({autoActive: true, position:'topright'}).addTo(map);
-
-// Mouse coords
-map.on('mousemove', e=>{
-  document.getElementById('coords').textContent = `Lat: ${e.latlng.lat.toFixed(5)}, Lng: ${e.latlng.lng.toFixed(5)}`;
-});
-
-/* ====== DATA LAYERS ====== */
-let adminLayer;
-let qhLayer;
-const painted = new Set(); // id set for export
-const paintedFeatures = []; // store features painted
-
-// Style by MaQuyUoc (Quy hoạch)
-function styleQH(feat){
-  const m = (feat.properties?.MaQuyUoc || '').toUpperCase();
-  let c = '#f59e0b'; // default Đất ở
-  if(m.includes('CX')) c = '#22c55e';
-  else if(m.includes('DGT')) c = '#9ca3af';
-  else if(m.includes('CC')) c = '#fde047';
-  else if(m.includes('MN')) c = '#60a5fa';
-  else if(m.includes('HTKT')) c = '#a78bfa';
-  else if(m.includes('TG')) c = '#06b6d4';
-  return { color:'#ef4444', weight:1, fillColor:c, fillOpacity:0.35 };
-}
-
-// Load địa giới
-fetch('assets/TPHCM.geojson')
-  .then(r=>r.json())
-  .then(geo=>{
-    adminLayer = L.geoJSON(geo, {
-      style: { color:'#ef4444', weight:2, fillOpacity:0 },
-      onEachFeature: (f,layer)=>{
-        layer.on('click',()=>{
-          const color = PAINT_PALETTE[paintIdx % PAINT_PALETTE.length];
-          paintIdx++;
-          layer.setStyle({ fillColor: color, fillOpacity: 0.45 });
-
-          const p = f.properties || {};
-          const name = p.ten_xa || '—';
-          const sap  = p.sap_nhap || '—';
-          const dt   = p.dtich_km2 !== undefined ? Number(p.dtich_km2).toLocaleString('vi-VN',{maximumFractionDigits:2})+' km²' : '—';
-          const dan  = p.dan_so !== undefined ? Number(p.dan_so).toLocaleString('vi-VN')+' người' : '—';
-
-          layer.bindPopup(`<b>${name}</b><br/>${sap}<br/><b>${dt}</b> — <b>${dan}</b>`).openPopup();
-
-          // mark for export
-          if(!painted.has(L.stamp(layer))){
-            painted.add(L.stamp(layer));
-            paintedFeatures.push(f);
-          }
-        });
-      }
-    }).addTo(map);
-  });
-
-// Load QH
-function loadQH(){
-  if(qhLayer){ map.removeLayer(qhLayer); qhLayer=null; }
-  fetch('assets/QHPKSDD_SHAPE.json')
-    .then(r=>r.json())
-    .then(geo=>{
-      qhLayer = L.geoJSON(geo, {
-        style: styleQH,
-        onEachFeature:(f,l)=>{
-          l.bindTooltip(f.properties?.MaQuyUoc || '',{sticky:true});
-        }
-      }).addTo(map);
-      document.getElementById('legendQH').style.display='block';
-    })
-    .catch(err=>{
-      alert('Không tải được Quy hoạch 1/2000 (kiểm tra CORS/đường dẫn).');
-      console.error(err);
+  r.addEventListener('change',()=>{
+    [osm,esriStreet,esriImg,gStreet,gHybrid,bingRoad].forEach(l=>{
+      if(map.hasLayer(l)) map.removeLayer(l);
     });
-}
-
-// Layer toggles
-document.getElementById('chkAdmin').addEventListener('change', e=>{
-  if(!adminLayer) return;
-  if(e.target.checked) map.addLayer(adminLayer); else map.removeLayer(adminLayer);
-});
-document.getElementById('chkQH').addEventListener('change', e=>{
-  if(e.target.checked) loadQH();
-  else{
-    if(qhLayer) map.removeLayer(qhLayer);
-    qhLayer=null;
-    document.getElementById('legendQH').style.display='none';
-  }
-});
-
-/* ====== PAINT & EXPORT ====== */
-document.getElementById('clearPaint').addEventListener('click', ()=>{
-  if(adminLayer){
-    adminLayer.eachLayer(l=>{
-      l.setStyle({ fillOpacity:0 });
-    });
-  }
-  painted.clear();
-  paintedFeatures.length = 0;
-});
-
-document.getElementById('exportGeoJSON').addEventListener('click', ()=>{
-  if(paintedFeatures.length===0){
-    alert('Chưa có vùng nào được tô để xuất.');
-    return;
-  }
-  const gj = { type:'FeatureCollection', features:[...paintedFeatures] };
-  const blob = new Blob([JSON.stringify(gj)], {type:'application/json;charset=utf-8'});
-  saveAs(blob, 'vung_to.geojson');
-});
-
-/* ====== SIDE PANEL ====== */
-const sideCard = document.getElementById('sideCard');
-document.getElementById('toggleSide').addEventListener('click', ()=>{
-  sideCard.style.display = (sideCard.style.display==='block') ? 'none':'block';
-});
-
-function putLatLngToFirstEmpty(ll){
-  const ids = ['tsbd','tsss1','tsss2','tsss3'];
-  for(const id of ids){
-    const inp = document.getElementById(id);
-    if(!inp.value.trim()){
-      inp.value = `${ll.lat.toFixed(6)}, ${ll.lng.toFixed(6)}`;
-      break;
+    switch(r.value){
+      case 'osm': osm.addTo(map); break;
+      case 'esriStreet': esriStreet.addTo(map); break;
+      case 'esriImg': esriImg.addTo(map); break;
+      case 'gStreet': gStreet.addTo(map); break;
+      case 'gHybrid': gHybrid.addTo(map); break;
+      case 'bingRoad': bingRoad.addTo(map); break;
     }
-  }
-}
-map.on('click', e=> putLatLngToFirstEmpty(e.latlng));
+  });
+});
 
-/* ====== SEARCH ====== */
-/* Google Places Autocomplete */
-let gAutocomplete;
+// Locate + Measure + Compass
+L.control.locate({ position:'topleft', strings:{title:'Định vị GPS'} }).addTo(map);
+L.control.measure({ primaryLengthUnit:'meters', primaryAreaUnit:'sqmeters' }).addTo(map);
+L.control.compass({autoActive:true, position:'topright'}).addTo(map);
+
+// Show coordinates
+map.on('mousemove', e=>{
+  document.getElementById('coords').textContent =
+    `Lat: ${e.latlng.lat.toFixed(5)}, Lng: ${e.latlng.lng.toFixed(5)}`;
+});
+
+/* ====== GOOGLE PLACES AUTOCOMPLETE ====== */
 function initGoogleAutocomplete(){
   const input = document.getElementById('searchBox');
   if(!window.google || !google.maps || !google.maps.places){
@@ -358,46 +125,47 @@ function initGoogleAutocomplete(){
     enableNominatimSearch();
     return;
   }
-  gAutocomplete = new google.maps.places.Autocomplete(input,{ componentRestrictions:{ country:'vn' }});
-  gAutocomplete.addListener('place_changed', ()=>{
-    const place = gAutocomplete.getPlace();
-    if(place && place.geometry && place.geometry.location){
+  const autocomplete = new google.maps.places.Autocomplete(input,{ componentRestrictions:{ country:'vn' }});
+  autocomplete.addListener('place_changed',()=>{
+    const place = autocomplete.getPlace();
+    if(place?.geometry?.location){
       const lat = place.geometry.location.lat();
       const lng = place.geometry.location.lng();
-      map.setView([lat,lng], 17);
+      map.setView([lat,lng],17);
       L.marker([lat,lng]).addTo(map);
     }
   });
 }
 
-/* Fallback: Nominatim */
+// Fallback OSM search
 function enableNominatimSearch(){
   const input = document.getElementById('searchBox');
   input.addEventListener('keydown', async (ev)=>{
-    if(ev.key === 'Enter'){
+    if(ev.key==='Enter'){
       const q = input.value.trim();
       if(!q) return;
-      const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}`;
-      try{
-        const res = await fetch(url,{headers:{'Accept-Language':'vi'}});
-        const data = await res.json();
-        if(data && data[0]){
-          const lat = parseFloat(data[0].lat), lon = parseFloat(data[0].lon);
-          map.setView([lat,lon], 17);
-          L.marker([lat,lon]).addTo(map).bindPopup(data[0].display_name).openPopup();
-        }else alert('Không tìm thấy kết quả.');
-      }catch(e){ console.error(e); }
+      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}`);
+      const data = await res.json();
+      if(data[0]){
+        const lat = +data[0].lat, lon = +data[0].lon;
+        map.setView([lat,lon],17);
+        L.marker([lat,lon]).addTo(map).bindPopup(data[0].display_name).openPopup();
+      } else alert('Không tìm thấy kết quả.');
     }
   });
 }
 
-/* ====== GOOGLE MAPS JS (Places) ====== */
-window.initMap = initGoogleAutocomplete;
-</script>
+/* ====== EXPORT ====== */
+document.getElementById('clearPaint').onclick = ()=>alert('Demo: Xóa tô màu');
+document.getElementById('exportGeoJSON').onclick = ()=>alert('Demo: Xuất GeoJSON');
 
-<!-- Google Maps JS (giữ nguyên key của anh) -->
-<script async defer
-  src="https://maps.googleapis.com/maps/api/js?key=AIzaSyARhMzsywQPyQbrbgS6aFVb5sg7eSV34oA&libraries=places&callback=initMap">
+/* ====== LOAD GOOGLE MAPS API ====== */
+window.addEventListener('load',()=>{
+  const s = document.createElement('script');
+  s.src = "https://maps.googleapis.com/maps/api/js?key=AIzaSyARhMzsywQPyQbrbgS6aFVb5sg7eSV34oA&libraries=places";
+  s.onload = initGoogleAutocomplete;
+  document.body.appendChild(s);
+});
 </script>
 </body>
 </html>
