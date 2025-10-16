@@ -3,185 +3,137 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>HCM WebGIS v5 — Street View API + Sidebar TSBĐ/TSSS</title>
+<title>HCM WebGIS v7 — Dynamic Measure + Compass + StreetView</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<link rel="stylesheet" href="https://unpkg.com/leaflet.locatecontrol/dist/L.Control.Locate.min.css"/>
-<link rel="stylesheet" href="https://unpkg.com/leaflet-measure/dist/leaflet-measure.css"/>
-<link rel="stylesheet" href="https://unpkg.com/leaflet-compass/dist/leaflet-compass.css"/>
-<link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css"/>
-<script src="https://unpkg.com/leaflet.locatecontrol/dist/L.Control.Locate.min.js"></script>
-<script src="https://unpkg.com/leaflet-measure/dist/leaflet-measure.js"></script>
-<script src="https://unpkg.com/leaflet-compass/dist/leaflet-compass.min.js"></script>
-<script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css"/>
+<script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
+<script src="https://unpkg.com/@turf/turf@6.5.0/turf.min.js"></script>
 <style>
-  html,body,#map{height:100%;margin:0}
-  #searchbar{position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:1400;width:520px}
-  #q{width:100%;padding:10px 12px;border:1px solid #bbb;border-radius:10px;box-shadow:0 2px 6px rgba(0,0,0,.15)}
-  .coords{position:absolute;left:10px;bottom:6px;background:rgba(255,255,255,.9);padding:4px 8px;border-radius:6px;font:12px monospace;z-index:1000}
-  .leaflet-bar button{display:block;width:100%;border:none;background:#fff;padding:8px;cursor:pointer}
-  .leaflet-bar button:hover{background:#eee}
-  #tools{position:absolute;right:10px;top:70px;z-index:1000}
-  #tools .btn{display:block;margin-bottom:6px;padding:8px 10px;border-radius:10px;border:1px solid #ddd;background:#fff;box-shadow:0 2px 6px rgba(0,0,0,.15);cursor:pointer}
-  #legend{position:absolute;right:10px;bottom:10px;background:#fff;padding:8px 10px;border-radius:8px;font-size:12px;box-shadow:0 2px 6px rgba(0,0,0,.2)}
-  #legend i{display:inline-block;width:14px;height:14px;margin-right:6px;vertical-align:middle}
-  #sidebarToggle{position:absolute;left:10px;top:10px;z-index:1500;background:#fff;border:1px solid #ddd;border-radius:10px;padding:8px 10px;box-shadow:0 2px 6px rgba(0,0,0,.15);cursor:pointer}
-  #sidebar{position:fixed;left:0;top:0;height:100%;width:340px;background:#ffffff;box-shadow:4px 0 16px rgba(0,0,0,.2);transform:translateX(-360px);transition:transform .25s ease;z-index:1600;padding:14px 14px 70px 14px;overflow:auto}
-  #sidebar.open{transform:translateX(0)}
-  #sidebar h3{margin:6px 0 10px}
-  #tabs{display:flex;gap:8px;margin-bottom:10px}
-  #tabs button{flex:1;border:1px solid #ccc;background:#f6f8fa;border-radius:8px;padding:8px;cursor:pointer}
-  #tabs button.active{background:#1f6feb;color:#fff;border-color:#1f6feb}
-  .form-row{display:flex;gap:8px;margin-bottom:8px}
-  .form-row input,.form-row select,.form-row textarea{flex:1;padding:8px;border:1px solid #ccc;border-radius:8px}
-  .muted{color:#586069;font-size:12px}
+html,body,#map{height:100%;margin:0}
+.toolbtn{background:#fff;border:1px solid #ddd;border-radius:50%;width:48px;height:48px;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,.15);font-size:22px;text-align:center;line-height:48px;transition:all .2s}
+.toolbtn:hover{transform:scale(1.1);background:#f1f5f9}
+#tools{position:absolute;right:10px;top:70px;z-index:1200;display:flex;flex-direction:column;gap:10px}
+#measureMenu{position:absolute;right:70px;top:120px;background:#fff;border:1px solid #ddd;border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,.15);display:none;z-index:1300}
+#measureMenu button{display:block;padding:8px 12px;border:none;background:#fff;width:180px;text-align:left;cursor:pointer}
+#measureMenu button:hover{background:#f1f5f9}
+#compassOverlay{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:350px;height:350px;border-radius:50%;background:rgba(255,255,255,.9);border:2px solid #bbb;display:none;z-index:1300;box-shadow:0 4px 14px rgba(0,0,0,.3)}
+#compassOverlay .label{position:absolute;font-weight:bold;color:#333;font-size:18px}
+#compassOverlay .n{top:8px;left:50%;transform:translateX(-50%);color:#d00}
+#compassOverlay .s{bottom:8px;left:50%;transform:translateX(-50%)}
+#compassOverlay .e{right:8px;top:50%;transform:translateY(-50%)}
+#compassOverlay .w{left:8px;top:50%;transform:translateY(-50%)}
+#btnClear{position:absolute;right:10px;bottom:70px;z-index:1200;background:#fff;border:1px solid #ddd;border-radius:10px;padding:8px 10px;box-shadow:0 2px 6px rgba(0,0,0,.15);}
 </style>
-<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyARhMzsywQPyQbrbgS6aFVb5sg7eSV34oA&libraries=places,geometry"></script>
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyARhMzsywQPyQbrbgS6aFVb5sg7eSV34oA&libraries=geometry,places"></script>
 </head>
 <body>
-<button id="sidebarToggle">📋 TSBĐ / TSSS</button>
-<div id="sidebar">
-  <h3>Thông tin tài sản</h3>
-  <div id="tabs">
-    <button id="tab-tsbd" class="active">TSBĐ</button>
-    <button id="tab-tsss">TSSS</button>
-  </div>
-  <div id="pane-tsbd">
-    <div class="form-row"><select id="tsbdLoai"><option>Nhà ở</option><option>Đất trống</option><option>Căn hộ</option></select></div>
-    <div class="form-row"><input id="tsbdDientich" type="number" placeholder="Diện tích (m²)"><input id="tsbdGia" type="number" placeholder="Giá trị (tỷ)"></div>
-    <div class="form-row"><input id="tsbdLat" placeholder="Lat"><input id="tsbdLng" placeholder="Lng"></div>
-    <div class="form-row"><textarea id="tsbdGhiChu" rows="3" placeholder="Ghi chú"></textarea></div>
-    <div class="form-row"><button id="tsbdPin">📍 Đặt điểm trên bản đồ</button><button id="tsbdStreet">👁️ Xem Street View</button></div>
-    <div class="muted">Mẹo: Nhập tọa độ rồi bấm “Đặt điểm” để nhảy tới vị trí TSBĐ.</div>
-  </div>
-  <div id="pane-tsss" style="display:none">
-    <div class="form-row"><input id="tsssTen" placeholder="Tên/Địa chỉ so sánh"><input id="tsssGia" type="number" placeholder="Giá (tỷ)"></div>
-    <div class="form-row"><input id="tsssLat" placeholder="Lat"><input id="tsssLng" placeholder="Lng"></div>
-    <div class="form-row"><button id="tsssAdd">➕ Thêm so sánh</button></div>
-    <div id="tsssList" class="muted">Chưa có mục so sánh nào.</div>
-  </div>
-</div>
-
-<div id="searchbar"><input id="q" placeholder="🔍 Địa chỉ, phường/xã, hoặc nhập tọa độ: 10.79844, 106.65855"></div>
 <div id="map"></div>
-
 <div id="tools">
-  <button id="btnClear" class="btn">🧹 Xóa tô màu</button>
-  <label class="btn"><input type="checkbox" id="chkQH" checked> Hiện Quy hoạch 1/2000</label>
+  <div id="btnCompass" class="toolbtn">🧭</div>
+  <div id="btnMeasure" class="toolbtn">📏</div>
+  <div id="btnGPS" class="toolbtn">📍</div>
 </div>
-
-<div id="legend">
-  <b>Chú giải loại đất</b><br>
-  <i style="background:#e41a1c"></i> Đất ở (ODT/ONT) &nbsp;
-  <i style="background:#4daf4a"></i> Cây xanh (CX) &nbsp;
-  <i style="background:#999"></i> Giao thông (DGT) &nbsp;
-  <i style="background:#ffcc00"></i> Công cộng (CC) &nbsp;
-  <i style="background:#6baed6"></i> Mặt nước (MN)
+<div id="measureMenu">
+  <button id="mDist">📍📍 Đo khoảng cách</button>
+  <button id="mArea">⬛ Đo diện tích</button>
+  <button id="mQuick">⚡ Đo nhanh (động)</button>
+  <button id="mFinish">🛑 Hoàn tất đo</button>
 </div>
-<div class="coords" id="coords">Lat: --, Lng: --</div>
-
+<div id="compassOverlay">
+  <div class="label n">B</div>
+  <div class="label s">N</div>
+  <div class="label e">Đ</div>
+  <div class="label w">T</div>
+</div>
+<button id="btnClear">🧹 Xóa tô màu</button>
 <script>
-const map=L.map('map',{center:[10.776,106.7],zoom:12});
+const map=L.map('map',{center:[10.776,106.7],zoom:13});
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap'}).addTo(map);
+let coloredLayers=[],drawnItems=new L.FeatureGroup().addTo(map),activeDraw=null;
 
-const osm=L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap'}).addTo(map);
-const esriStreet=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',{attribution:'© Esri'});
-const esriImagery=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{attribution:'© Esri Imagery'});
-const esriTopo=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}',{attribution:'© Esri Topo'});
-const gStreet=L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}&key=AIzaSyARhMzsywQPyQbrbgS6aFVb5sg7eSV34oA',{attribution:'© Google'});
-const gHybrid=L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}&key=AIzaSyARhMzsywQPyQbrbgS6aFVb5sg7eSV34oA',{attribution:'© Google'});
+// Clear
+document.getElementById('btnClear').onclick=()=>{coloredLayers.forEach(l=>l.setStyle({fillColor:null,fillOpacity:.1}));coloredLayers=[];};
 
-L.control.layers({"🗺️ OSM":osm,"🗺️ Esri Street":esriStreet,"🛰️ Esri Imagery":esriImagery,"🗺️ Esri Topo":esriTopo,"🌍 Google Street":gStreet,"🛰️ Google Hybrid":gHybrid},{},{collapsed:true}).addTo(map);
+// Compass
+const compass=document.getElementById('compassOverlay');let compassOn=false;
+document.getElementById('btnCompass').onclick=()=>{compassOn=!compassOn;compass.style.display=compassOn?'block':'none';};
 
-function colorBy(code){const lut={"ODT":"#e41a1c","ONT":"#e41a1c","CX":"#4daf4a","DGT":"#999","CC":"#ffcc00","MN":"#6baed6","HTKT":"#984ea3","TG":"#fdb462"};for(const k in lut){if(code && code.includes(k)) return lut[k];}return "#ccc";}
-const hanhChinh=L.layerGroup().addTo(map),quyHoach=L.layerGroup().addTo(map);
-let coloredLayers=[];
-
-fetch('assets/TPHCM.geojson').then(r=>r.json()).then(geo=>{
-  const layer=L.geoJSON(geo,{style:{color:"#ff6600",weight:1,fillOpacity:.1},onEachFeature:(f,l)=>{
-    const p=f.properties||{};l.bindPopup(`<b>${p.ten_xa||''}</b><br>${p.quan_huyen||''}<br>${(p.dtich_km2||'-')} km²<br>${p.dan_so? p.dan_so.toLocaleString()+' người':'-'}`);
-    l.on('click',()=>{l.setStyle({fillColor:"#ff79c6",fillOpacity:.45});if(!coloredLayers.includes(l))coloredLayers.push(l);});
-  }});hanhChinh.addLayer(layer);
-});
-
-fetch('assets/QHPKSDD_SHAPE.json').then(r=>r.json()).then(geo=>{
-  const layer=L.geoJSON(geo,{style:f=>({color:"#666",weight:.4,fillColor:colorBy(f.properties?.MaQuyUoc),fillOpacity:.5}),onEachFeature:(f,l)=>l.bindPopup(`<b>${f.properties?.MaQuyUoc||''}</b> - ${f.properties?.TenLoaiDat||''}`)});quyHoach.addLayer(layer);
-});
-
-document.getElementById('chkQH').addEventListener('change',e=>{ if(e.target.checked) map.addLayer(quyHoach); else map.removeLayer(quyHoach); });
-
-L.control.locate({strings:{title:"Định vị GPS"}}).addTo(map);
-L.control.measure({primaryLengthUnit:'meters',primaryAreaUnit:'sqmeters'}).addTo(map);
-L.control.compass({autoActive:true,position:'topright'}).addTo(map);
-
-document.getElementById('btnClear').onclick=()=>{ coloredLayers.forEach(l=>l.setStyle({fillColor:null,fillOpacity:.1})); coloredLayers=[]; };
-
-const qInp=document.getElementById('q');const ac=new google.maps.places.Autocomplete(qInp,{componentRestrictions:{country:"vn"}});
-let lastMarker=null;
-function placeMarker(lat,lng,label){
-  map.setView([lat,lng],17);
-  if(lastMarker) map.removeLayer(lastMarker);
-  lastMarker=L.marker([lat,lng]).addTo(map).bindPopup(`<b>${label||''}</b><br><button id="svbtn">👁️ Xem Street View tại vị trí này</button>`).openPopup();
-  setTimeout(()=>{const btn=document.getElementById('svbtn'); if(btn){ btn.onclick=()=>openStreetView(lat,lng); }},60);
-}
-ac.addListener("place_changed",()=>{ const p=ac.getPlace(); if(!p.geometry) return; placeMarker(p.geometry.location.lat(),p.geometry.location.lng(),p.formatted_address||p.name); });
-qInp.addEventListener('keydown',ev=>{ if(ev.key!=="Enter") return; const m=qInp.value.trim().match(/^(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)/); if(m){ const lat=parseFloat(m[1]),lng=parseFloat(m[2]); placeMarker(lat,lng,`Tọa độ: ${lat.toFixed(6)}, ${lng.toFixed(6)}`);} });
-
-const svService=new google.maps.StreetViewService();
-function openStreetView(lat,lng){
-  const html=`<div id="sv" style="width:350px;height:250px"></div>`;
-  L.popup({maxWidth:380}).setLatLng([lat,lng]).setContent(html).openOn(map);
-  setTimeout(()=>{
-    svService.getPanorama({location:{lat:lat,lng:lng}, radius:60},(data,status)=>{
-      if(status!=='OK'||!data||!data.location){ document.getElementById('sv').innerHTML='<div style="padding:8px">Không có Street View tại đây.</div>'; return; }
-      let heading=0;
-      if(data.links && data.links.length){ heading=data.links[0].heading; }
-      else if(google.maps.geometry && data.location && data.location.latLng){
-        heading=google.maps.geometry.spherical.computeHeading(data.location.latLng,new google.maps.LatLng(lat,lng));
-      }
-      new google.maps.StreetViewPanorama(document.getElementById('sv'),{
-        position:data.location.latLng,
-        pov:{heading:heading,pitch:0,zoom:0},
-        linksControl:true, zoomControl:true, panControl:true, addressControl:false
-      });
-    });
-  },50);
-}
-map.on('contextmenu', e=> openStreetView(e.latlng.lat, e.latlng.lng));
-
-// Sidebar
-const sidebar=document.getElementById('sidebar');
-document.getElementById('sidebarToggle').onclick=()=> sidebar.classList.toggle('open');
-const tabTSBD=document.getElementById('tab-tsbd'); const tabTSSS=document.getElementById('tab-tsss');
-const paneTSBD=document.getElementById('pane-tsbd'); const paneTSSS=document.getElementById('pane-tsss');
-function setTab(which){ if(which==='tsbd'){ tabTSBD.classList.add('active'); tabTSSS.classList.remove('active'); paneTSBD.style.display='block'; paneTSSS.style.display='none'; } else { tabTSBD.classList.remove('active'); tabTSSS.classList.add('active'); paneTSBD.style.display='none'; paneTSSS.style.display='block'; } }
-tabTSBD.onclick=()=>setTab('tsbd'); tabTSSS.onclick=()=>setTab('tsss');
-document.getElementById('tsbdPin').onclick=()=>{ const lat=parseFloat(document.getElementById('tsbdLat').value); const lng=parseFloat(document.getElementById('tsbdLng').value); if(!isFinite(lat)||!isFinite(lng)){ alert('Nhập Lat/Lng hợp lệ'); return; } placeMarker(lat,lng,'TSBĐ'); };
-document.getElementById('tsbdStreet').onclick=()=>{ const lat=parseFloat(document.getElementById('tsbdLat').value); const lng=parseFloat(document.getElementById('tsbdLng').value); if(!isFinite(lat)||!isFinite(lng)){ alert('Nhập Lat/Lng hợp lệ'); return; } openStreetView(lat,lng); };
-
-const tsssList=document.getElementById('tsssList'); const items=[];
-document.getElementById('tsssAdd').onclick=()=>{
-  const name=document.getElementById('tsssTen').value.trim(); const price=parseFloat(document.getElementById('tsssGia').value);
-  const lat=parseFloat(document.getElementById('tsssLat').value); const lng=parseFloat(document.getElementById('tsssLng').value);
-  if(!name || !isFinite(lat)||!isFinite(lng)){ alert('Nhập tên và tọa độ hợp lệ'); return; }
-  items.push({name,price,lat,lng}); renderTSSS();
+// Measure menu
+document.getElementById('btnMeasure').onclick=()=>{
+ const m=document.getElementById('measureMenu');
+ m.style.display=m.style.display==='block'?'none':'block';
 };
-function renderTSSS(){
-  if(!items.length){ tsssList.innerHTML='Chưa có mục so sánh nào.'; return; }
-  tsssList.innerHTML=items.map((it,i)=>`<div style="margin:6px 0;padding:6px;border:1px solid #eee;border-radius:8px">
-    <b>${i+1}. ${it.name}</b> — ${it.price? it.price+' tỷ':''}<br>
-    ${it.lat.toFixed(6)}, ${it.lng.toFixed(6)}
-    <div style="margin-top:4px">
-      <button onclick="window._goTSSS(${i})">Tới vị trí</button>
-      <button onclick="window._svTSSS(${i})">Street View</button>
-      <button onclick="window._rmTSSS(${i})">Xóa</button>
-    </div>
-  </div>`).join('');
+function stopMeasure(){if(activeDraw){activeDraw.disable();activeDraw=null;}}
+function startDist(){
+ stopMeasure();
+ activeDraw=new L.Draw.Polyline(map,{shapeOptions:{color:'#00BFFF',weight:3}});
+ activeDraw.enable();
 }
-window._goTSSS=(i)=>{ const it=items[i]; placeMarker(it.lat,it.lng,it.name); };
-window._svTSSS=(i)=>{ const it=items[i]; openStreetView(it.lat,it.lng); };
-window._rmTSSS=(i)=>{ items.splice(i,1); renderTSSS(); };
+function startArea(){
+ stopMeasure();
+ activeDraw=new L.Draw.Polygon(map,{shapeOptions:{color:'#00BFFF',weight:2,fillOpacity:.2}});
+ activeDraw.enable();
+}
+document.getElementById('mDist').onclick=()=>{document.getElementById('measureMenu').style.display='none';startDist();};
+document.getElementById('mArea').onclick=()=>{document.getElementById('measureMenu').style.display='none';startArea();};
+document.getElementById('mFinish').onclick=()=>{stopMeasure();document.getElementById('measureMenu').style.display='none';};
 
-map.on('mousemove', e=> document.getElementById('coords').textContent=`Lat:${e.latlng.lat.toFixed(5)}, Lng:${e.latlng.lng.toFixed(5)}`);
+// Dynamic measure
+let dynamicStart=null,dynLine=null,dynLabel=null;
+document.getElementById('mQuick').onclick=()=>{
+  document.getElementById('measureMenu').style.display='none';
+  alert('Chế độ đo nhanh: click chọn điểm đầu, di chuột để xem khoảng cách, double click hoặc ESC để thoát.');
+  map.on('click',startDynamic);
+};
+function startDynamic(e){
+  if(dynamicStart){return;}
+  dynamicStart=e.latlng;
+  dynLine=L.polyline([dynamicStart],{color:'#00BFFF',weight:4,opacity:0.9}).addTo(map);
+  dynLabel=L.marker(e.latlng,{interactive:false,icon:L.divIcon({className:'dynLabel',html:'',iconSize:[120,30]})}).addTo(map);
+  map.on('mousemove',updateDynamic);
+  map.on('dblclick',endDynamic);
+  document.addEventListener('keydown',escDynamic);
+}
+function updateDynamic(e){
+ if(!dynamicStart)return;
+ const latlngs=[dynamicStart,e.latlng];
+ dynLine.setLatLngs(latlngs);
+ const dist=map.distance(dynamicStart,e.latlng);
+ const text=`📍 ${e.latlng.lat.toFixed(5)}, ${e.latlng.lng.toFixed(5)}<br>📏 ${(dist).toFixed(1)} m`;
+ dynLabel.setLatLng(e.latlng);
+ dynLabel._icon.innerHTML=`<div style="background:rgba(255,255,255,0.9);border:1px solid #ccc;border-radius:6px;padding:4px 6px;font-size:13px;box-shadow:0 0 8px #00BFFF">${text}</div>`;
+}
+function endDynamic(){
+ if(dynLine){dynLine.remove();dynLabel.remove();}
+ dynamicStart=null;dynLine=null;dynLabel=null;
+ map.off('mousemove',updateDynamic);map.off('dblclick',endDynamic);map.off('click',startDynamic);
+ document.removeEventListener('keydown',escDynamic);
+}
+function escDynamic(e){if(e.key==='Escape')endDynamic();}
+
+// Leaflet Draw result
+map.on(L.Draw.Event.CREATED, e=>{
+ const layer=e.layer;drawnItems.addLayer(layer);
+ if(e.layerType==='polyline'){
+   const coords=layer.getLatLngs().map(ll=>[ll.lng,ll.lat]);
+   let len=0;for(let i=1;i<coords.length;i++){len+=turf.distance(coords[i-1],coords[i],{units:'kilometers'});}
+   layer.bindPopup('Chiều dài: '+(len*1000).toFixed(1)+' m').openPopup();
+ }else if(e.layerType==='polygon'){
+   const coords=[layer.getLatLngs()[0].map(ll=>[ll.lng,ll.lat])];
+   const poly=turf.polygon([coords[0]]);const area=turf.area(poly);
+   layer.bindPopup('Diện tích: '+area.toFixed(0)+' m²').openPopup();
+ }
+});
+
+// Glow effect for dynamic line
+L.Polyline.include({
+ _updatePath:function(){
+   L.Path.prototype._updatePath.call(this);
+   if(this.options.color==='#00BFFF'){
+     const ctx=this._ctx;ctx.save();ctx.shadowColor='#00BFFF';ctx.shadowBlur=8;ctx.stroke();ctx.restore();
+   }
+ }
+});
 </script>
-</body>
-</html>
+</body></html>
