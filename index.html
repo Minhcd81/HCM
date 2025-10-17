@@ -333,7 +333,7 @@ const clickColors=['#FFD700','#FFA500','#FF4500','#8A2BE2','#1E90FF','#00CED1'];
 // Load trực tiếp từ GitHub repo: Assets/TPHCM.geojson
 loadGeo();
 function loadGeo(){
-  fetch('Assets/TPHCM.geojson')
+  fetch(assets/TPHCM.geojson')
     .then(r=>{ if(!r.ok) throw new Error('Không tải được Assets/TPHCM.geojson'); return r.json(); })
     .then(drawGeo)
     .catch(err=>{
