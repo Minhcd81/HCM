@@ -3,18 +3,20 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>HCM WebGIS v10 — Unified Search + Meeymap Compass Overlay</title>
+<title>HCM WebGIS v12 — Unified Search + Compass Overlay + TSBĐ/TSSS + Export</title>
 
 <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css"/>
 <link rel="stylesheet" href="https://unpkg.com/leaflet.locatecontrol/dist/L.Control.Locate.min.css"/>
-
+<link rel="preconnect" href="https://unpkg.com">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
 <script src="https://unpkg.com/@turf/turf@6.5.0/turf.min.js"></script>
 <script src="https://unpkg.com/leaflet.locatecontrol/dist/L.Control.Locate.min.js"></script>
-
+<script src="https://unpkg.com/leaflet-easyprint@2.1.9/dist/bundle.js"></script>
+<!-- SheetJS: xuất Excel -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.20.0/dist/xlsx.full.min.js"></script>
 <!-- Google: bật Places + Geometry cho key của anh -->
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyARhMzsywQPyQbrbgS6aFVb5sg7eSV34oA&libraries=places,geometry"></script>
 
@@ -25,7 +27,7 @@ html,body{height:100%;margin:0;font-family:'Roboto',Arial,sans-serif}
 #map{position:absolute;inset:0}
 
 /* Unified search */
-#searchWrap{position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:1400;width:760px;max-width:92vw}
+#searchWrap{position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:1400;width:860px;max-width:92vw}
 #search{width:100%;padding:12px 14px;border:1px solid #cfd4dc;border-radius:14px;background:#fff;
         box-shadow:0 2px 8px rgba(0,0,0,.15)}
 #search::placeholder{color:#8a8f98}
@@ -35,7 +37,7 @@ html,body{height:100%;margin:0;font-family:'Roboto',Arial,sans-serif}
 .sug-item{padding:10px 12px;cursor:pointer}
 .sug-item:hover{background:#f6faff}
 
-/* Right tools */
+/* Tools (right) */
 #tools{position:absolute;right:10px;top:72px;z-index:1200;display:flex;flex-direction:column;gap:10px}
 .toolbtn{background:#fff;border:1px solid #ddd;border-radius:50%;width:48px;height:48px;cursor:pointer;
 display:flex;align-items:center;justify-content:center;font-size:22px;box-shadow:0 2px 8px rgba(0,0,0,.15)}
@@ -51,18 +53,20 @@ box-shadow:0 8px 24px rgba(0,0,0,.18);display:none;z-index:1300}
 #btnClear{position:absolute;right:10px;top:230px;z-index:1200;background:#fff;border:1px solid #ddd;border-radius:12px;
 padding:8px 12px;box-shadow:0 2px 6px rgba(0,0,0,.15);cursor:pointer}
 
-/* Sidebar TSBĐ/TSSS */
+/* Sidebar */
 #sidebarToggle{position:absolute;left:10px;top:120px;z-index:1200;background:#fff;border:1px solid #ddd;border-radius:12px;
 padding:8px 12px;box-shadow:0 2px 6px rgba(0,0,0,.15);cursor:pointer}
-#sidebar{position:fixed;left:0;top:0;height:100%;width:360px;background:#fff;box-shadow:4px 0 20px rgba(0,0,0,.2);
-transform:translateX(-380px);transition:transform .28s ease;z-index:1600;padding:16px;overflow:auto}
+#sidebar{position:fixed;left:0;top:0;height:100%;width:380px;background:#fff;box-shadow:4px 0 20px rgba(0,0,0,.2);
+transform:translateX(-400px);transition:transform .28s ease;z-index:1600;display:flex;flex-direction:column}
 #sidebar.open{transform:translateX(0)}
-#tabs{display:flex;gap:8px;margin-bottom:10px}
-#tabs button{flex:1;border:1px solid #cfd4dc;background:#f6f8fa;border-radius:10px;padding:8px;cursor:pointer}
-#tabs button.active{background:#00BFFF;color:#fff}
+#sbHead{background:var(--pri);color:#fff;padding:14px 16px;font-weight:700;display:flex;align-items:center;justify-content:space-between}
+#sidebarClose{border:none;background:transparent;color:#fff;font-size:22px;cursor:pointer}
+#sbBody{padding:12px 12px 90px;overflow:auto}
+.section{border:1px solid #e5e7eb;border-radius:12px;padding:10px 10px 6px;margin-bottom:10px}
+.section h4{margin:0 0 8px;font-size:14px}
 .form-row{display:flex;gap:8px;margin-bottom:8px}
 .form-row input,.form-row select,.form-row textarea{flex:1;padding:9px;border:1px solid #cfd4dc;border-radius:10px}
-#sidebarClose{position:absolute;right:10px;top:8px;border:none;background:none;font-size:22px;cursor:pointer}
+.small{font-size:12px;color:#6b7280}
 
 /* Compass overlay (transparent 100%) */
 #compassOverlay{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:260px;height:260px;
@@ -77,6 +81,7 @@ pointer-events:none;display:none;z-index:1300}
   #searchWrap{width:92vw}
   #tools{flex-direction:row;bottom:10px;top:auto;right:50%;transform:translateX(50%)}
   #btnClear,#sidebarToggle{bottom:70px;top:auto}
+  #sidebar{width:92vw;transform:translateX(-100vw)}
   #compassOverlay{width:220px;height:220px}
 }
 </style>
@@ -103,27 +108,63 @@ pointer-events:none;display:none;z-index:1300}
 </div>
 <button id="btnClear">🧹 Xóa tô màu</button>
 
-<!-- Sidebar -->
+<!-- Sidebar TSBĐ/TSSS (gộp) -->
 <button id="sidebarToggle">📋 TSBĐ / TSSS</button>
 <div id="sidebar">
-  <button id="sidebarClose">×</button>
-  <h3>Thông tin tài sản</h3>
-  <div id="tabs">
-    <button id="tab-tsbd" class="active">TSBĐ</button>
-    <button id="tab-tsss">TSSS</button>
+  <div id="sbHead">
+    <span>📋 TSBĐ / TSSS</span>
+    <button id="sidebarClose">×</button>
   </div>
-  <div id="pane-tsbd">
-    <div class="form-row"><select id="tsbdLoai"><option>Nhà ở</option><option>Đất trống</option><option>Căn hộ</option></select></div>
-    <div class="form-row"><input id="tsbdDientich" placeholder="Diện tích (m²)" type="number"><input id="tsbdGia" placeholder="Giá trị (tỷ)" type="number"></div>
-    <div class="form-row"><input id="tsbdLat" placeholder="Lat"><input id="tsbdLng" placeholder="Lng"></div>
-    <div class="form-row"><textarea id="tsbdGhiChu" rows="3" placeholder="Ghi chú"></textarea></div>
-    <div class="form-row"><button id="tsbdPin">📍 Đặt điểm</button><button id="tsbdStreet">👁️ Street View</button></div>
-  </div>
-  <div id="pane-tsss" style="display:none">
-    <div class="form-row"><input id="tsssTen" placeholder="Tên so sánh"><input id="tsssGia" placeholder="Giá (tỷ)" type="number"></div>
-    <div class="form-row"><input id="tsssLat" placeholder="Lat"><input id="tsssLng" placeholder="Lng"></div>
-    <div class="form-row"><button id="tsssAdd">➕ Thêm</button></div>
-    <div id="tsssList" class="muted">Chưa có mục so sánh nào.</div>
+  <div id="sbBody">
+    <!-- TSBĐ -->
+    <div class="section">
+      <h4>TSBĐ</h4>
+      <div class="form-row">
+        <select id="tsbdLoai"><option>Nhà ở</option><option>Đất trống</option><option>Căn hộ</option></select>
+        <input id="tsbdDientich" placeholder="Diện tích (m²)" type="number">
+      </div>
+      <div class="form-row">
+        <input id="tsbdGia" placeholder="Giá trị (tỷ)" type="number">
+        <input id="tsbdTen" placeholder="Tên/Địa chỉ tài sản">
+      </div>
+      <div class="form-row">
+        <input id="tsbdLat" placeholder="Lat">
+        <input id="tsbdLng" placeholder="Lng">
+      </div>
+      <div class="form-row">
+        <textarea id="tsbdGhiChu" rows="2" placeholder="Ghi chú"></textarea>
+      </div>
+      <div class="form-row">
+        <button id="tsbdPin">📍 Đặt điểm</button>
+        <button id="tsbdStreet">👁️ Street View</button>
+        <button id="btnShot">📷 Chụp ảnh PNG</button>
+      </div>
+      <div class="small">Mẹo: nhập Lat/Lng rồi “Đặt điểm” để ghim TSBĐ.</div>
+    </div>
+
+    <!-- TSSS -->
+    <div class="section">
+      <h4>Tài sản so sánh (TSSS)</h4>
+      <div class="form-row">
+        <input id="tsssTen" placeholder="Tên/Địa chỉ so sánh">
+        <input id="tsssGia" placeholder="Giá (tỷ)" type="number">
+      </div>
+      <div class="form-row">
+        <input id="tsssLat" placeholder="Lat">
+        <input id="tsssLng" placeholder="Lng">
+      </div>
+      <div class="form-row">
+        <button id="tsssAdd">➕ Thêm TSSS (auto nối)</button>
+        <button id="tsssClear">🗑️ Xóa tất cả TSSS</button>
+      </div>
+      <div id="tsssList" class="small">Chưa có mục so sánh nào.</div>
+
+      <div class="form-row" style="margin-top:10px">
+        <button id="btnExportCSV">📄 Xuất CSV</button>
+        <button id="btnExportXLSX">📘 Xuất Excel (.xlsx)</button>
+      </div>
+      <div class="small">File xuất gồm: STT, Tên, Lat, Lng, Giá (tỷ), Khoảng cách (m), Ghi chú.</div>
+    </div>
   </div>
 </div>
 
@@ -133,7 +174,7 @@ pointer-events:none;display:none;z-index:1300}
 <div class="coords" id="coords">Lat: --, Lng: --</div>
 
 <script>
-// ===== Map base =====
+/* ================== MAP BASE ================== */
 const map=L.map('map',{center:[10.776,106.7],zoom:12});
 const osm=L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap'}).addTo(map);
 const gStreet=L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}');
@@ -142,20 +183,12 @@ L.control.layers({"🗺️ OSM":osm,"🌍 Google Street":gStreet,"🛰️ Google
 
 let coloredLayers=[], lastMarker=null;
 
-// ===== Sidebar =====
+/* ================== SIDEBAR ================== */
 const sidebar=document.getElementById('sidebar');
 document.getElementById('sidebarToggle').onclick=()=>sidebar.classList.add('open');
 document.getElementById('sidebarClose').onclick=()=>sidebar.classList.remove('open');
-document.getElementById('tab-tsbd').onclick=()=>swapTab(true);
-document.getElementById('tab-tsss').onclick=()=>swapTab(false);
-function swapTab(isTSBD){
-  document.getElementById('tab-tsbd').classList.toggle('active',isTSBD);
-  document.getElementById('tab-tsss').classList.toggle('active',!isTSBD);
-  document.getElementById('pane-tsbd').style.display=isTSBD?'block':'none';
-  document.getElementById('pane-tsss').style.display=!isTSBD?'block':'none';
-}
 
-// ===== GeoJSON indexes =====
+/* ================== GEOJSON (popup + indexes) ================== */
 let gjLayer=null, allFeatures=[], wardIndex=new Map(), oldNameIndex=new Map();
 fetch('assets/TPHCM.geojson').then(r=>r.json()).then(geo=>{
   gjLayer=L.geoJSON(geo,{style:baseStyle,onEachFeature:(f,l)=>{
@@ -168,16 +201,12 @@ fetch('assets/TPHCM.geojson').then(r=>r.json()).then(geo=>{
     const ds=(p.dan_so!=null)?`${Number(p.dan_so).toLocaleString('vi-VN')} người`:'—';
 
     l.bindPopup(`<b>${ten}</b><br>${qh}<br>Trước sáp nhập: ${sn}<br>Diện tích: ${dt}<br>Dân số: ${ds}`);
-
     l.on('click',()=>{const c=randColor(); l.setStyle({fillColor:c,fillOpacity:.5}); if(!coloredLayers.includes(l)) coloredLayers.push(l);});
-    allFeatures.push({layer:l,props:p});
 
-    // Ward index (current name)
+    allFeatures.push({layer:l,props:p});
     const kWard=normalize(ten);
     if(!wardIndex.has(kWard)) wardIndex.set(kWard,[]);
     wardIndex.get(kWard).push(l);
-
-    // Old names index
     if(snRaw && snRaw!=='0'){
       snRaw.split(',').map(s=>s.trim()).filter(Boolean).forEach(old=>{
         const kOld=normalize(old);
@@ -187,7 +216,7 @@ fetch('assets/TPHCM.geojson').then(r=>r.json()).then(geo=>{
     }
   }}).addTo(map);
 
-  setupUnifiedSearch(); // after indexes ready
+  setupUnifiedSearch();
 }).catch(()=>alert('Không tải được assets/TPHCM.geojson, kiểm tra đường dẫn.'));
 
 function baseStyle(){ return {color:'#555',weight:1,fillOpacity:.15}; }
@@ -197,7 +226,7 @@ function varPri(){ return getComputedStyle(document.documentElement).getProperty
 function randColor(){ const a=['#FFD700','#FFA500','#FF4500','#8A2BE2','#1E90FF','#00CED1']; return a[(Math.random()*a.length)|0]; }
 function normalize(s){ return (s||'').toString().trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,''); }
 
-// ===== Unified search (Places + ward + old + latlng) =====
+/* ================== UNIFIED SEARCH (Places + ward + old + latlng) ================== */
 function setupUnifiedSearch(){
   const input=document.getElementById('search');
   const sug=document.getElementById('localSuggest');
@@ -222,13 +251,11 @@ function setupUnifiedSearch(){
     const val=input.value.trim();
     const m=val.match(/^(-?\d+(?:\.\d+)?),\s*(-?\d+(?:\.\d+)?)/);
     if(m){ placeMarker(+m[1],+m[2],'Tọa độ nhập tay'); hideSuggest(); return; }
-    // try ward/old search
     if(handleLocalSearch(val)){ hideSuggest(); return; }
-    // fallback: geocode API if Places failed
     geocodeFallback(val);
   });
 
-  // Realtime suggestions for ward/old (>=3 chars)
+  // gợi ý nội bộ (ward/old) khi gõ ≥3 ký tự
   input.addEventListener('input',()=>{
     const val=input.value.trim();
     if(val.length<3){ hideSuggest(); return; }
@@ -238,9 +265,9 @@ function setupUnifiedSearch(){
 
     if(wardHits.length===0 && oldHits.length===0){ hideSuggest(); return; }
     sug.innerHTML=`${wardHits.length?`<div class="sug-header">Phường/Xã</div>`:''}${
-      wardHits.map(w=>`<div class="sug-item" data-type="ward" data-key="${w}">${displayName(w)}</div>`).join('')
+      wardHits.map(w=>`<div class="sug-item" data-type="ward" data-key="${w}">${restoreCase(w)}</div>`).join('')
     }${oldHits.length?`<div class="sug-header">Tên cũ trước sáp nhập</div>`:''}${
-      oldHits.map(w=>`<div class="sug-item" data-type="old" data-key="${w}">${displayName(w)}</div>`).join('')
+      oldHits.map(w=>`<div class="sug-item" data-type="old" data-key="${w}">${restoreCase(w)}</div>`).join('')
     }`;
     sug.style.display='block';
   });
@@ -254,9 +281,7 @@ function setupUnifiedSearch(){
   });
 
   function hideSuggest(){ sug.style.display='none'; }
-  function displayName(slug){ // restore capitalization best-effort
-    return slug.split(' ').map(s=>s.charAt(0).toUpperCase()+s.slice(1)).join(' ');
-  }
+  function restoreCase(slug){ return slug.split(' ').map(s=>s.charAt(0).toUpperCase()+s.slice(1)).join(' '); }
 
   async function geocodeFallback(val){
     try{
@@ -278,7 +303,6 @@ function zoomToFromIndex(index,key){
   map.fitBounds(l.getBounds().pad(0.2));
   l.openPopup();
 }
-
 function handleLocalSearch(val){
   const q=normalize(val);
   let layers=wardIndex.get(q);
@@ -302,7 +326,7 @@ function handleLocalSearch(val){
   return true;
 }
 
-// ===== Marker & StreetView =====
+/* ================== Marker & StreetView ================== */
 function placeMarker(lat,lng,label){
   map.setView([lat,lng],17);
   if(lastMarker) map.removeLayer(lastMarker);
@@ -313,11 +337,11 @@ function placeMarker(lat,lng,label){
 function openStreetView(lat,lng){
   const html=`<iframe width='350' height='250' style='border:0' loading='lazy'
     referrerpolicy='no-referrer-when-downgrade'
-    src='https://www.google.com/maps/embed?pb=!4v1665600758447!6m8!1m7!1sCAoSLEFGMVFpcE1Xd2VoQllvT2F2TkFwSGlDaTZYVFF6b1pHOUdwa3JtX3lPaUo3!2m2!1d${lat}!2d${lng}!3f0!4f0!5f0.7820865974627469'></iframe>`;
+    src='https://www.google.com/maps/embed?pb=!4v1665600758447!6m8!1m7!1sCAoSLEFGMVFpcE1Xd2VoQllvT2F2TkFwSGlDaTZYVFF6b1pHOUdwa3JtX3lPaUo3!2m2!1d${lat}!2d${lng}!3f0!4f0!5f0!0'></iframe>`;
   L.popup().setLatLng([lat,lng]).setContent(html).openOn(map);
 }
 
-// ===== Measure (distance/area) =====
+/* ================== Measure (distance/area) ================== */
 const drawnItems=new L.FeatureGroup().addTo(map);
 let activeDraw=null;
 function stopMeasure(){if(activeDraw){activeDraw.disable();activeDraw=null;}}
@@ -336,7 +360,7 @@ map.on(L.Draw.Event.CREATED,e=>{
   }
 });
 
-// ===== Compass overlay (Meeymap style) =====
+/* ================== Compass overlay (Meeymap style) ================== */
 const compassEl=document.getElementById('compassOverlay');
 const cv=document.getElementById('compassCanvas'), ctx=cv.getContext('2d');
 let compassOn=false, deviceHeading=0, liveBearing=null, bearingMode=false;
@@ -344,12 +368,8 @@ const R=cv.width/2, C=R;
 
 function drawCompass(){
   ctx.clearRect(0,0,cv.width,cv.height);
-
-  // outer circle
   ctx.strokeStyle='rgba(0,0,0,.35)'; ctx.lineWidth=1.5;
   ctx.beginPath(); ctx.arc(C,C,R-6,0,Math.PI*2); ctx.stroke();
-
-  // ticks
   for(let d=0; d<360; d+=10){
     const len=(d%30===0)?10:5, a=(d-deviceHeading)*Math.PI/180;
     const r1=R-14, r2=r1-len;
@@ -358,55 +378,28 @@ function drawCompass(){
     ctx.lineTo(C+Math.cos(a)*r2, C+Math.sin(a)*r2);
     ctx.stroke();
   }
-
-  // labels B(0), Đ(90), N(180), T(270)
   labelAt('B',0); labelAt('Đ',90); labelAt('N',180); labelAt('T',270);
   function labelAt(text,deg){
-    const a=(deg-deviceHeading)*Math.PI/180;
-    const r=R-34;
-    ctx.fillStyle='#111'; ctx.font='700 14px Roboto';
-    const x=C+Math.cos(a)*r, y=C+Math.sin(a)*r+5;
-    ctx.textAlign='center'; ctx.fillText(text,x,y);
+    const a=(deg-deviceHeading)*Math.PI/180, r=R-34;
+    ctx.fillStyle='#111'; ctx.font='700 14px Roboto'; ctx.textAlign='center';
+    const x=C+Math.cos(a)*r, y=C+Math.sin(a)*r+5; ctx.fillText(text,x,y);
   }
-
-  // north needle (red)
-  ctx.save();
-  ctx.translate(C,C);
-  ctx.rotate((-deviceHeading)*Math.PI/180);
-  ctx.fillStyle='#d00';
-  ctx.beginPath(); ctx.moveTo(0,-(R-34)); ctx.lineTo(7,0); ctx.lineTo(-7,0); ctx.closePath(); ctx.fill();
-  ctx.restore();
-
-  // bearing readout (if measuring heading)
-  if(liveBearing!=null){
-    ctx.fillStyle='#111'; ctx.font='700 16px Roboto';
-    ctx.textAlign='center';
-    ctx.fillText(`${liveBearing.toFixed(0)}°`, C, C+R-50);
-  }
+  ctx.save(); ctx.translate(C,C); ctx.rotate((-deviceHeading)*Math.PI/180);
+  ctx.fillStyle='#d00'; ctx.beginPath(); ctx.moveTo(0,-(R-34)); ctx.lineTo(7,0); ctx.lineTo(-7,0); ctx.closePath(); ctx.fill(); ctx.restore();
+  if(liveBearing!=null){ ctx.fillStyle='#111'; ctx.font='700 16px Roboto'; ctx.textAlign='center'; ctx.fillText(`${liveBearing.toFixed(0)}°`, C, C+R-50); }
 }
-
 function setCompass(on){
-  compassOn=on; bearingMode=on;
-  compassEl.style.display = on ? 'block' : 'none';
-  liveBearing=null;
-  if(on) drawCompass();
+  compassOn=on; bearingMode=on; compassEl.style.display = on ? 'block' : 'none'; liveBearing=null; if(on) drawCompass();
 }
 document.getElementById('btnCompass').onclick=()=> setCompass(!compassOn);
-
-// device orientation (mobile)
 window.addEventListener('deviceorientation',e=>{
   if(typeof e.alpha==='number'){ deviceHeading = 360 - e.alpha; if(compassOn) drawCompass(); }
 });
-
-// measure bearing (click two points)
 let bearingStart=null, tempLine=null;
 map.on('click',e=>{
   if(!bearingMode) return;
-  if(!bearingStart){
-    bearingStart=e.latlng;
-    if(tempLine){ map.removeLayer(tempLine); tempLine=null; }
-  }else{
-    // finalize
+  if(!bearingStart){ bearingStart=e.latlng; if(tempLine){ map.removeLayer(tempLine); tempLine=null; } }
+  else{
     const brg = bearingBetween(bearingStart,e.latlng);
     liveBearing = normalizeDeg(brg - deviceHeading);
     if(tempLine){ tempLine.bindPopup(`Hướng: ${liveBearing.toFixed(0)}°`).openPopup(); }
@@ -419,37 +412,140 @@ map.on('mousemove',e=>{
   if(!tempLine) tempLine=L.polyline(pts,{color:'#00BFFF',weight:3,dashArray:'6,6'}).addTo(map);
   else tempLine.setLatLngs(pts);
   const brg = bearingBetween(bearingStart,e.latlng);
-  liveBearing = normalizeDeg(brg - deviceHeading);
-  drawCompass();
+  liveBearing = normalizeDeg(brg - deviceHeading); drawCompass();
 });
 function bearingBetween(a,b){
-  const brg = turf.bearing([a.lng,a.lat],[b.lng,b.lat]); // -180..180
-  return (brg+360)%360; // 0..360
+  const brg = turf.bearing([a.lng,a.lat],[b.lng,b.lat]); return (brg+360)%360;
 }
 function normalizeDeg(d){ d%=360; if(d<0)d+=360; return d; }
 
-// ===== GPS =====
+/* ================== GPS ================== */
 const locateCtrl=L.control.locate({strings:{title:"Vị trí của tôi"},showCompass:true,setView:'untilPanOrZoom'});
 document.getElementById('btnGPS').onclick=()=>{ if(!locateCtrl._map) locateCtrl.addTo(map); locateCtrl.start(); };
 
-// ===== Clear =====
+/* ================== CLEAR COLORS ================== */
 document.getElementById('btnClear').onclick=()=>{ coloredLayers.forEach(l=>l.setStyle({fillColor:null,fillOpacity:.15})); coloredLayers=[]; };
 
-// ===== Coords footer =====
+/* ================== FOOTER COORDS ================== */
 map.on('mousemove',e=>document.getElementById('coords').textContent=`Lat:${e.latlng.lat.toFixed(5)}, Lng:${e.latlng.lng.toFixed(5)}`);
 
-// ===== TSBĐ quick =====
+/* ================== TSBĐ / TSSS ================== */
+let tsbdMarker=null, tsssMarkers=[], tsssLines=[];
+const fmtM = m => `${m.toFixed(1)} m`;
+
+function readLatLng(latId,lngId){
+  const lat=parseFloat(document.getElementById(latId).value);
+  const lng=parseFloat(document.getElementById(lngId).value);
+  return (isFinite(lat)&&isFinite(lng))?{lat,lng}:null;
+}
+function updateTSSSList(){
+  const box=document.getElementById('tsssList');
+  if(tsssMarkers.length===0){ box.textContent='Chưa có mục so sánh nào.'; return; }
+  box.innerHTML=tsssMarkers.map((m,i)=>`• ${m.meta?.name||'TSSS'} — ${m.getLatLng().lat.toFixed(5)}, ${m.getLatLng().lng.toFixed(5)} — Giá: ${m.meta?.price??''} tỷ`).join('<br>');
+}
+
 document.getElementById('tsbdPin').onclick=()=>{
-  const lat=parseFloat(document.getElementById('tsbdLat').value);
-  const lng=parseFloat(document.getElementById('tsbdLng').value);
-  if(!isFinite(lat)||!isFinite(lng)){ alert('Nhập Lat/Lng hợp lệ'); return; }
-  placeMarker(lat,lng,'TSBĐ');
+  const pt=readLatLng('tsbdLat','tsbdLng'); if(!pt){ alert('Nhập Lat/Lng hợp lệ cho TSBĐ'); return; }
+  if(tsbdMarker) map.removeLayer(tsbdMarker);
+  tsbdMarker=L.marker([pt.lat,pt.lng],{title:'TSBĐ'}).addTo(map)
+    .bindPopup(`<b>TSBĐ</b><br>${document.getElementById('tsbdTen').value||''}`).openPopup();
+  map.setView([pt.lat,pt.lng],17);
+  redrawTSSSLines();
 };
 document.getElementById('tsbdStreet').onclick=()=>{
-  const lat=parseFloat(document.getElementById('tsbdLat').value);
-  const lng=parseFloat(document.getElementById('tsbdLng').value);
-  if(!isFinite(lat)||!isFinite(lng)){ alert('Nhập Lat/Lng hợp lệ'); return; }
-  openStreetView(lat,lng);
+  const pt=readLatLng('tsbdLat','tsbdLng'); if(!pt){ alert('Nhập Lat/Lng hợp lệ cho TSBĐ'); return; }
+  openStreetView(pt.lat,pt.lng);
+};
+
+/* Chụp ảnh PNG */
+let printer=L.easyPrint({ tileLayer: osm, sizeModes: ['Current'], filename: 'HCM_Map', exportOnly: true, hideControlContainer: true }).addTo(map);
+document.getElementById('btnShot').onclick=()=>{
+  try{ printer.printMap('CurrentSize','HCM_Map'); }
+  catch(e){ alert('Chụp ảnh không thành công. Vui lòng thử lại!'); console.error(e); }
+};
+
+/* Thêm TSSS (auto-connect) */
+document.getElementById('tsssAdd').onclick=()=>{
+  const pt=readLatLng('tsssLat','tsssLng'); if(!pt){ alert('Nhập Lat/Lng hợp lệ cho TSSS'); return; }
+  const name=document.getElementById('tsssTen').value||'TSSS';
+  const price=parseFloat(document.getElementById('tsssGia').value);
+  const m=L.marker([pt.lat,pt.lng],{title:name}).addTo(map); m.meta={name,price:isFinite(price)?price:null};
+  tsssMarkers.push(m);
+
+  if(tsbdMarker){
+    const a=tsbdMarker.getLatLng(), b=m.getLatLng();
+    const line=L.polyline([a,b],{color:'#00BFFF',weight:3,opacity:.8}).addTo(map);
+    const dist=turf.distance([a.lng,a.lat],[b.lng,b.lat],{units:'kilometers'})*1000;
+    line.bindPopup(`Khoảng cách TSBĐ ↔ ${name}: <b>${fmtM(dist)}</b>`);
+    tsssLines.push(line);
+  }
+
+  m.bindPopup(`<b>${name}</b><br>${pt.lat.toFixed(5)}, ${pt.lng.toFixed(5)}${isFinite(price)?`<br>Giá: ${price} tỷ`:''}`);
+  updateTSSSList(); map.setView([pt.lat,pt.lng],17);
+};
+document.getElementById('tsssClear').onclick=()=>{
+  tsssMarkers.forEach(m=>map.removeLayer(m));
+  tsssLines.forEach(l=>map.removeLayer(l));
+  tsssMarkers=[]; tsssLines=[];
+  updateTSSSList();
+};
+function redrawTSSSLines(){
+  tsssLines.forEach(l=>map.removeLayer(l));
+  tsssLines=[];
+  if(!tsbdMarker) return;
+  const a=tsbdMarker.getLatLng();
+  tsssMarkers.forEach(m=>{
+    const b=m.getLatLng();
+    const line=L.polyline([a,b],{color:'#00BFFF',weight:3,opacity:.8}).addTo(map);
+    const dist=turf.distance([a.lng,a.lat],[b.lng,b.lat],{units:'kilometers'})*1000;
+    line.bindPopup(`Khoảng cách TSBĐ ↔ ${m.meta?.name||'TSSS'}: <b>${fmtM(dist)}</b>`);
+    tsssLines.push(line);
+  });
+}
+
+/* ================== EXPORT CSV / EXCEL ================== */
+function collectExportRows(){
+  const rows=[];
+  if(!tsbdMarker){ alert('Vui lòng đặt điểm TSBĐ trước khi xuất.'); return null; }
+  const a=tsbdMarker.getLatLng();
+  tsssMarkers.forEach((m,idx)=>{
+    const b=m.getLatLng();
+    const distM=turf.distance([a.lng,a.lat],[b.lng,b.lat],{units:'kilometers'})*1000;
+    rows.push({
+      STT: idx+1,
+      Ten: m.meta?.name||'TSSS',
+      Lat: +b.lat.toFixed(6),
+      Lng: +b.lng.toFixed(6),
+      Gia_ty: (m.meta?.price!=null)? m.meta.price : '',
+      Khoang_cach: `${distM.toFixed(1)} m`,
+      Ghi_chu: ''
+    });
+  });
+  if(rows.length===0){ alert('Chưa có TSSS để xuất.'); return null; }
+  return rows;
+}
+function timestamp(){ const d=new Date(); const p=n=>String(n).padStart(2,'0'); return `${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}`; }
+
+document.getElementById('btnExportCSV').onclick=()=>{
+  const rows=collectExportRows(); if(!rows) return;
+  const headers=['STT','Ten','Lat','Lng','Gia_ty','Khoang_cach','Ghi_chu'];
+  const csv=[headers.join(','), ...rows.map(r=>headers.map(h=>{
+    const v=r[h]==null?'':String(r[h]).replace(/"/g,'""');
+    return /[",\n]/.test(v)?`"${v}"`:v;
+  }).join(','))].join('\n');
+  const blob=new Blob([`\uFEFF${csv}`],{type:'text/csv;charset=utf-8;'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=`TSSS_Export_HCM_${timestamp()}.csv`;
+  document.body.appendChild(a); a.click(); a.remove();
+};
+
+document.getElementById('btnExportXLSX').onclick=()=>{
+  const rows=collectExportRows(); if(!rows) return;
+  const ws=XLSX.utils.json_to_sheet(rows);
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'TSSS');
+  XLSX.writeFile(wb,`TSSS_Export_HCM_${timestamp()}.xlsx`);
 };
 </script>
 </body>
