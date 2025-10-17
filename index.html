@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>HCM WebGIS v8.1 — Compass + Popup Colors + StreetView (Roboto)</title>
+<title>HCM WebGIS v8.3 — Responsive + Compass + Popup “Trước sáp nhập”</title>
 
 <!-- Fonts & CSS libs -->
 <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
@@ -20,14 +20,15 @@
 
 <style>
 :root{--pri:#1f6feb;--text:#202124}
+*{box-sizing:border-box}
 html,body{height:100%;margin:0;padding:0;font-family:'Roboto',system-ui,-apple-system,Segoe UI,Arial}
 #map{position:absolute;inset:0}
 
-/* Search bar */
+/* Search bar (responsive) */
 #searchbar{position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:1400;width:560px;max-width:92vw}
 #q{width:100%;padding:10px 12px;border:1px solid #cfd4dc;border-radius:12px;box-shadow:0 2px 6px rgba(0,0,0,.12)}
 
-/* Tools (right panel) */
+/* Tools (right) */
 #tools{position:absolute;right:10px;top:70px;z-index:1200;display:flex;flex-direction:column;gap:10px}
 .toolbtn{background:#fff;border:1px solid #ddd;border-radius:50%;width:48px;height:48px;cursor:pointer;
          display:flex;align-items:center;justify-content:center;font-size:22px;
@@ -37,7 +38,7 @@ html,body{height:100%;margin:0;padding:0;font-family:'Roboto',system-ui,-apple-s
 /* Measure menu */
 #measureMenu{position:absolute;right:70px;top:120px;background:#fff;border:1px solid #ddd;border-radius:12px;
              box-shadow:0 8px 24px rgba(0,0,0,.18);display:none;z-index:1300;overflow:hidden}
-#measureMenu button{display:block;padding:10px 14px;border:none;background:#fff;width:220px;text-align:left;cursor:pointer;font-size:14px}
+#measureMenu button{display:block;padding:10px 14px;border:none;background:#fff;width:240px;text-align:left;cursor:pointer;font-size:14px}
 #measureMenu button:hover{background:#f1f5f9}
 
 /* Compass overlay (center) */
@@ -54,7 +55,7 @@ html,body{height:100%;margin:0;padding:0;font-family:'Roboto',system-ui,-apple-s
 #btnClear{position:absolute;right:10px;top:220px;z-index:1200;background:#fff;border:1px solid #ddd;border-radius:12px;
           padding:8px 12px;box-shadow:0 2px 6px rgba(0,0,0,.15);cursor:pointer}
 
-/* Sidebar toggle (left, under zoom) */
+/* Sidebar toggle (left, dưới +/-) */
 #sidebarToggle{position:absolute;left:10px;top:120px;z-index:1200;background:#fff;border:1px solid #ddd;border-radius:12px;
                padding:8px 12px;box-shadow:0 2px 6px rgba(0,0,0,.15);cursor:pointer}
 
@@ -73,10 +74,24 @@ html,body{height:100%;margin:0;padding:0;font-family:'Roboto',system-ui,-apple-s
 
 /* Footer coords */
 .coords{position:absolute;left:10px;bottom:6px;background:rgba(255,255,255,.9);padding:4px 8px;border-radius:8px;font:12px monospace;z-index:1000}
+
+/* ======= Responsive ======= */
+@media (max-width: 768px){
+  #searchbar{width:90vw;left:50%;transform:translateX(-50%);top:8px}
+  #tools{right:50%;transform:translateX(50%);bottom:8px;top:auto;flex-direction:row;gap:8px}
+  .toolbtn{width:44px;height:44px;font-size:20px}
+  #measureMenu{right:8px;top:auto;bottom:60px}
+  #btnClear{top:auto;bottom:60px}
+  #sidebarToggle{top:auto;bottom:60px}
+  #compassOverlay{width:300px;height:300px}
+}
 </style>
 </head>
 <body>
+<!-- Search bar -->
 <div id="searchbar"><input id="q" placeholder="🔍 Địa chỉ / phường/xã hoặc tọa độ: 10.79844, 106.65855"></div>
+
+<!-- Map -->
 <div id="map"></div>
 
 <!-- Tools -->
@@ -129,6 +144,7 @@ html,body{height:100%;margin:0;padding:0;font-family:'Roboto',system-ui,-apple-s
   <canvas id="compassCanvas" width="350" height="350"></canvas>
 </div>
 
+<!-- Coords -->
 <div class="coords" id="coords">Lat: --, Lng: --</div>
 
 <script>
@@ -148,7 +164,7 @@ L.control.layers({
   "🗺️ Esri Topo":esriTopo,"🌍 Google Street":gStreet,"🛰️ Google Hybrid":gHybrid
 },{},{collapsed:true}).addTo(map);
 
-// Keep colored layers for clear
+// For clearing colored areas later
 let coloredLayers = [];
 document.getElementById('btnClear').onclick = () => {
   coloredLayers.forEach(l=>l.setStyle({fillColor:null,fillOpacity:.15}));
@@ -157,35 +173,47 @@ document.getElementById('btnClear').onclick = () => {
 
 // ================== SEARCH (Places + LatLng) ==================
 const qInp = document.getElementById('q');
-const ac = new google.maps.places.Autocomplete(qInp,{componentRestrictions:{country:"vn"}});
 let lastMarker = null;
 
-function placeMarker(lat,lng,label){
-  map.setView([lat,lng],17);
-  if(lastMarker) map.removeLayer(lastMarker);
-  lastMarker = L.marker([lat,lng]).addTo(map)
-    .bindPopup(`<b>${label||''}</b><br><button id="svbtn">👁️ Xem Street View tại vị trí này</button>`).openPopup();
-  setTimeout(()=>{const b=document.getElementById('svbtn'); if(b){b.onclick=()=>openStreetView(lat,lng);}},40);
+// Autocomplete (try/catch để không chặn khi Places bị chặn)
+let ac = null;
+try{
+  ac = new google.maps.places.Autocomplete(qInp,{componentRestrictions:{country:"vn"}});
+  ac.addListener("place_changed",()=>{
+    const p=ac.getPlace(); if(!p || !p.geometry) return;
+    placeMarker(p.geometry.location.lat(), p.geometry.location.lng(), p.formatted_address||p.name);
+  });
+}catch(err){
+  console.warn('Google Places không sẵn sàng, vẫn hỗ trợ nhập tọa độ thủ công.');
 }
-ac.addListener("place_changed",()=>{
-  const p=ac.getPlace(); if(!p.geometry) return;
-  placeMarker(p.geometry.location.lat(),p.geometry.location.lng(),p.formatted_address||p.name);
-});
+
+// Enter → parse Lat,Lng
 qInp.addEventListener('keydown',ev=>{
   if(ev.key!=="Enter") return;
   const m=qInp.value.trim().match(/^(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)/);
   if(m){ const lat=parseFloat(m[1]),lng=parseFloat(m[2]); placeMarker(lat,lng,`Tọa độ: ${lat.toFixed(6)}, ${lng.toFixed(6)}`); }
 });
 
+function placeMarker(lat,lng,label){
+  map.setView([lat,lng],17);
+  if(lastMarker) map.removeLayer(lastMarker);
+  lastMarker=L.marker([lat,lng]).addTo(map)
+    .bindPopup(`<b>${label||''}</b><br><button id="svbtn">👁️ Xem Street View tại vị trí này</button>`).openPopup();
+  setTimeout(()=>{const b=document.getElementById('svbtn'); if(b){b.onclick=()=>openStreetView(lat,lng);}},40);
+}
+
 // ================== STREET VIEW ==================
 const svService = new google.maps.StreetViewService();
 function openStreetView(lat,lng){
-  const html = '<div id="sv" style="width:350px;height:250px"></div>';
-  L.popup({maxWidth:380}).setLatLng([lat,lng]).setContent(html).openOn(map);
+  const isMobile = window.innerWidth<=768;
+  const w = isMobile ? 300 : 350;
+  const h = isMobile ? 200 : 250;
+  const html = `<div id="sv" style="width:${w}px;height:${h}px"></div>`;
+  L.popup({maxWidth:w+30}).setLatLng([lat,lng]).setContent(html).openOn(map);
   setTimeout(()=>{
     svService.getPanorama({location:{lat:lat,lng:lng}, radius:60},(data,status)=>{
       if(status!=='OK'||!data||!data.location){
-        document.getElementById('sv').innerHTML='<div style="padding:8px">Không có Street View tại đây.</div>'; return;
+        const el=document.getElementById('sv'); if(el) el.innerHTML='<div style="padding:8px">Không có Street View tại đây.</div>'; return;
       }
       let heading=0;
       if(data.links && data.links.length){ heading=data.links[0].heading; }
@@ -215,7 +243,6 @@ function drawCompass(){
     const len=(d%30===0)?12:6, a=d*Math.PI/180;
     ctx.beginPath(); ctx.moveTo((r-len)*Math.cos(a),(r-len)*Math.sin(a)); ctx.lineTo(r*Math.cos(a),r*Math.sin(a)); ctx.stroke();
   }
-  // red north arrow
   ctx.rotate((arrowHeading)*Math.PI/180);
   ctx.fillStyle='#d00'; ctx.beginPath(); ctx.moveTo(0,-r+18); ctx.lineTo(8,0); ctx.lineTo(-8,0); ctx.closePath(); ctx.fill();
   ctx.restore();
@@ -231,7 +258,6 @@ document.getElementById('btnCompass').onclick = ()=>{
 // Device orientation (mobile)
 function onDevOri(e){
   if(typeof e.alpha==='number'){
-    // alpha: 0 hướng Bắc; đảo trục để mũi tên quay đúng Bắc
     arrowHeading = 360 - e.alpha;
     if(compass.style.display==='block') drawCompass();
   }
@@ -301,70 +327,42 @@ document.getElementById('tsbdStreet').onclick=()=>{
   openStreetView(lat,lng);
 };
 
-// TSSS list
-const tsssList=document.getElementById('tsssList'); const items=[];
-document.getElementById('tsssAdd').onclick=()=>{
-  const name=document.getElementById('tsssTen').value.trim(); const price=parseFloat(document.getElementById('tsssGia').value);
-  const lat=parseFloat(document.getElementById('tsssLat').value); const lng=parseFloat(document.getElementById('tsssLng').value);
-  if(!name || !isFinite(lat)||!isFinite(lng)){ alert('Nhập tên và tọa độ hợp lệ'); return; }
-  items.push({name,price,lat,lng}); renderTSSS();
-};
-function renderTSSS(){
-  if(!items.length){ tsssList.innerHTML='Chưa có mục so sánh nào.'; return; }
-  tsssList.innerHTML=items.map((it,i)=>`<div style="margin:8px 0;padding:8px;border:1px solid #eef1f4;border-radius:10px">
-    <b>${i+1}. ${it.name}</b> ${isFinite(it.price)?'— '+it.price+' tỷ':''}<br>
-    ${it.lat.toFixed(6)}, ${it.lng.toFixed(6)}
-    <div style="margin-top:6px;display:flex;gap:6px">
-      <button onclick="window._goTSSS(${i})">Tới vị trí</button>
-      <button onclick="window._svTSSS(${i})">Street View</button>
-      <button onclick="window._rmTSSS(${i})">Xóa</button>
-    </div>
-  </div>`).join('');
-}
-window._goTSSS=i=>{ const it=items[i]; placeMarker(it.lat,it.lng,it.name); };
-window._svTSSS=i=>{ const it=items[i]; openStreetView(it.lat,it.lng); };
-window._rmTSSS=i=>{ items.splice(i,1); renderTSSS(); };
-
 // ================== POPUP & COLORING FROM GEOJSON ==================
 const clickColors=['#FFD700','#FFA500','#FF4500','#8A2BE2','#1E90FF','#00CED1'];
 
-// Fallback demo nếu repo không có assets/TPHCM.geojson
-const fallbackGeo = {"type":"FeatureCollection","features":[
-  {"type":"Feature","properties":{"ten_xa":"Phường 9","quan_huyen":"Quận 3","dtich_km2":0.42,"dan_so":21213,"sap_nhap":0},
-   "geometry":{"type":"Polygon","coordinates":[[[106.68,10.78],[106.682,10.78],[106.682,10.783],[106.68,10.783],[106.68,10.78]]]}},
-  {"type":"Feature","properties":{"ten_xa":"Phường 11","quan_huyen":"Quận 3","dtich_km2":0.43,"dan_so":22450,"sap_nhap":0},
-   "geometry":{"type":"Polygon","coordinates":[[[106.682,10.78],[106.684,10.78],[106.684,10.783],[106.682,10.783],[106.682,10.78]]]}},
-  {"type":"Feature","properties":{"ten_xa":"Phường 12","quan_huyen":"Quận 3","dtich_km2":0.44,"dan_so":22710,"sap_nhap":0},
-   "geometry":{"type":"Polygon","coordinates":[[[106.684,10.78],[106.686,10.78],[106.686,10.783],[106.684,10.783],[106.684,10.78]]]}},
-  {"type":"Feature","properties":{"ten_xa":"Phường 14","quan_huyen":"Quận 3","dtich_km2":0.42,"dan_so":21717,"sap_nhap":0},
-   "geometry":{"type":"Polygon","coordinates":[[[106.686,10.78],[106.688,10.78],[106.688,10.783],[106.686,10.783],[106.686,10.78]]]}},
-  {"type":"Feature","properties":{"ten_xa":"Nhiêu Lộc","quan_huyen":"Quận 3","dtich_km2":1.71,"dan_so":88090,"sap_nhap":1},
-   "geometry":{"type":"Polygon","coordinates":[[[106.68,10.783],[106.688,10.783],[106.688,10.788],[106.68,10.788],[106.68,10.783]]]}}
-]};
-
+// Load trực tiếp từ GitHub repo: Assets/TPHCM.geojson
 loadGeo();
 function loadGeo(){
-  fetch('assets/TPHCM.geojson').then(r=>{if(!r.ok) throw 0; return r.json();})
-  .then(drawGeo).catch(()=>drawGeo(fallbackGeo));
+  fetch('Assets/TPHCM.geojson')
+    .then(r=>{ if(!r.ok) throw new Error('Không tải được Assets/TPHCM.geojson'); return r.json(); })
+    .then(drawGeo)
+    .catch(err=>{
+      console.error(err);
+      alert('Không tìm thấy Assets/TPHCM.geojson. Vui lòng đảm bảo tệp này tồn tại trong repo ở thư mục Assets/');
+    });
 }
+
 function drawGeo(geo){
-  const layer=L.geoJSON(geo,{
+  L.geoJSON(geo,{
     style:{color:"#555",weight:1,fillOpacity:.15},
     onEachFeature:(f,l)=>{
       const p=f.properties||{};
-      let title = p.ten_xa || '—';
-      let info = '';
-      if(Number(p.sap_nhap)===1){
-        title='Nhiêu Lộc';
-        info=`1.71 km²<br>88.090 người<br>Gồm: Phường 9, 11, 12, 14 (Quận 3)`;
-      } else {
-        const dt=(p.dtich_km2!=null)?`${p.dtich_km2} km²`:'—';
-        const ds=(p.dan_so!=null)?`${Number(p.dan_so).toLocaleString('vi-VN')} người`:'—';
-        info = `${dt}<br>${ds}`;
-      }
+      const name = (p.ten_xa!=null)? String(p.ten_xa) : '—';
       const qh = p.quan_huyen ? `<div style="color:#5f6368">${p.quan_huyen}</div>` : '';
-      l.bindPopup(`<b>${title}</b>${qh}<br>${info}`);
+      const dt = (p.dtich_km2!=null)? `${p.dtich_km2} km²` : '—';
+      const ds = (p.dan_so!=null)? `${Number(p.dan_so).toLocaleString('vi-VN')} người` : '—';
+      const sn = (p.sap_nhap!=null && String(p.sap_nhap).trim()!=='' && String(p.sap_nhap).trim()!=='0')
+                ? String(p.sap_nhap) : '—';
 
+      // Trường hợp đặc biệt: Nhiêu Lộc (giữ nội dung chuẩn anh yêu cầu)
+      const isNhieuLoc = name.normalize('NFC').toLowerCase().includes('nhiêu lộc') || name.normalize('NFD').toLowerCase().includes('nhieu loc');
+      if(isNhieuLoc){
+        l.bindPopup(`<b>Nhiêu Lộc</b>${qh}<br>Trước sáp nhập: Phường 9, Phường 11, Phường 12, Phường 14 (Quận 3)<br>Diện tích: 1.71 km²<br>Dân số: 88.090 người`);
+      }else{
+        l.bindPopup(`<b>${name}</b>${qh}<br>Trước sáp nhập: ${sn}<br>Diện tích: ${dt}<br>Dân số: ${ds}`);
+      }
+
+      // Đổi màu khi click
       l.on('click',()=>{
         const c = clickColors[(Math.random()*clickColors.length)|0];
         l.setStyle({fillColor:c,fillOpacity:.5});
@@ -377,9 +375,5 @@ function drawGeo(geo){
 // ================== COORDS FOOTER ==================
 map.on('mousemove', e=> document.getElementById('coords').textContent = `Lat:${e.latlng.lat.toFixed(5)}, Lng:${e.latlng.lng.toFixed(5)}`);
 </script>
-
-<!-- Top search bar & coords footer (placed at end to ensure map renders first) -->
-<div id="searchbar" style="pointer-events:auto"><input id="q" placeholder="🔍 Địa chỉ / phường/xã hoặc tọa độ: 10.79844, 106.65855"></div>
-<div class="coords" id="coords">Lat: --, Lng: --</div>
 </body>
 </html>
