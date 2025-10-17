@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>HCM WebGIS v9 — Ward Search + 2-level Filter + Compass</title>
+<title>HCM WebGIS v9.2 — Places Autocomplete + Tên cũ</title>
 
 <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
@@ -13,8 +13,8 @@
 <script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
 <script src="https://unpkg.com/@turf/turf@6.5.0/turf.min.js"></script>
 <script src="https://unpkg.com/leaflet.locatecontrol/dist/L.Control.Locate.min.js"></script>
-<!-- Google: chỉ dùng Geocoding + StreetView -->
-<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyARhMzsywQPyQbrbgS6aFVb5sg7eSV34oA&libraries=geometry"></script>
+<!-- Google JS: cần bật Places API cho key của anh -->
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyARhMzsywQPyQbrbgS6aFVb5sg7eSV34oA&libraries=places,geometry"></script>
 
 <style>
 :root{--pri:#00BFFF}
@@ -22,8 +22,8 @@
 html,body{height:100%;margin:0;font-family:'Roboto',Arial,sans-serif}
 #map{position:absolute;inset:0}
 
-/* Search stack (2 ô) */
-#search-stack{position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:1200;width:720px;max-width:92vw}
+/* Search stack (3 ô) */
+#search-stack{position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:1200;width:760px;max-width:92vw}
 .searchbox{width:100%;padding:10px 12px;border:1px solid #cfd4dc;border-radius:12px;background:#fff;
            box-shadow:0 2px 6px rgba(0,0,0,.12);margin-bottom:8px}
 .searchbox::placeholder{color:#8a8f98}
@@ -59,14 +59,14 @@ transform:translateX(-380px);transition:transform .3s ease;z-index:1600;padding:
 .form-row input,.form-row select,.form-row textarea{flex:1;padding:9px;border:1px solid #cfd4dc;border-radius:10px}
 #sidebarClose{position:absolute;right:10px;top:8px;border:none;background:none;font-size:22px;cursor:pointer}
 
-/* District/Ward filter control (top-left, dưới +/-) */
+/* District/Ward filter control (top-left) */
 .leaflet-top.leaflet-left .filter-control{margin-top:60px}
 .filter-control{background:#fff;border:1px solid #ddd;border-radius:10px;padding:8px 10px;
   box-shadow:0 2px 8px rgba(0,0,0,.15);min-width:230px;font-size:14px}
 .filter-control select,.filter-control button{width:100%;margin-top:6px;padding:8px;border:1px solid #cfd4dc;border-radius:8px;background:#fff;cursor:pointer}
 .filter-title{font-weight:700}
 
-/* Compass overlay (small) */
+/* Compass (small) */
 #compassOverlay{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:180px;height:180px;border-radius:50%;
 background:rgba(255,255,255,.85);border:1px solid #bbb;display:none;z-index:1300;box-shadow:0 6px 16px rgba(0,0,0,.25)}
 #compassOverlay canvas{width:100%;height:100%}
@@ -88,9 +88,10 @@ background:rgba(255,255,255,.85);border:1px solid #bbb;display:none;z-index:1300
   <input id="qAddr" class="searchbox" placeholder="🔍 Địa chỉ / phường xã hoặc tọa độ: 10.79844, 106.65855">
   <input id="qWard" class="searchbox" list="wardList" placeholder="🔎 Tìm nhanh phường/xã (gõ ≥ 3 ký tự)…">
   <datalist id="wardList"></datalist>
+  <input id="qOld" class="searchbox" list="oldList" placeholder="🏷️ Tên cũ trước sáp nhập (ví dụ: Phường 5, An Hội Tây)…">
+  <datalist id="oldList"></datalist>
 </div>
 
-<!-- MAP -->
 <div id="map"></div>
 
 <!-- TOOLS -->
@@ -130,22 +131,22 @@ background:rgba(255,255,255,.85);border:1px solid #bbb;display:none;z-index:1300
   </div>
 </div>
 
-<!-- COMPASS -->
+<!-- Compass -->
 <div id="compassOverlay"><canvas id="compassCanvas" width="180" height="180"></canvas></div>
 
 <div class="coords" id="coords">Lat: --, Lng: --</div>
 
 <script>
-// ===== Map base =====
+/* ================== MAP BASE ================== */
 const map=L.map('map',{center:[10.776,106.7],zoom:12});
 const osm=L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap'}).addTo(map);
 const gStreet=L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}');
 const gHybrid=L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}');
 L.control.layers({"🗺️ OSM":osm,"🌍 Google Street":gStreet,"🛰️ Google Hybrid":gHybrid}).addTo(map);
 
-let coloredLayers=[];
+let coloredLayers=[], lastMarker=null;
 
-// ===== Sidebar (TSBĐ/TSSS) =====
+/* ================== SIDEBAR ================== */
 const sidebar=document.getElementById('sidebar');
 document.getElementById('sidebarToggle').onclick=()=>sidebar.classList.add('open');
 document.getElementById('sidebarClose').onclick=()=>sidebar.classList.remove('open');
@@ -158,26 +159,23 @@ function swapTab(isTSBD){
   document.getElementById('pane-tsss').style.display=!isTSBD?'block':'none';
 }
 
-// ===== Search 1: Địa chỉ hoặc tọa độ =====
+/* ================== SEARCH 1: Autocomplete Places + Tọa độ ================== */
 const qAddr=document.getElementById('qAddr');
-qAddr.addEventListener('keydown',async e=>{
-  if(e.key!=='Enter')return;
+const ac=new google.maps.places.Autocomplete(qAddr,{types:['geocode'],componentRestrictions:{country:'vn'}});
+ac.addListener('place_changed',()=>{
+  const place=ac.getPlace();
+  if(place && place.geometry && place.geometry.location){
+    const lat=place.geometry.location.lat(), lng=place.geometry.location.lng();
+    placeMarker(lat,lng,place.formatted_address||'Vị trí đã chọn');
+  }
+});
+qAddr.addEventListener('keydown',e=>{
+  if(e.key!=='Enter')return; // Enter đã được Places xử lý, nhưng vẫn hỗ trợ tọa độ
   const val=qAddr.value.trim();
-  // If lat,lng
   const m=val.match(/^(-?\d+(?:\.\d+)?),\s*(-?\d+(?:\.\d+)?)/);
-  if(m){ placeMarker(+m[1],+m[2],'Tọa độ nhập tay'); return; }
-  // Otherwise geocode
-  try{
-    const url=`https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(val)}&key=AIzaSyARhMzsywQPyQbrbgS6aFVb5sg7eSV34oA`;
-    const res=await fetch(url); const data=await res.json();
-    if(data.status==="OK"){
-      const g=data.results[0]; const loc=g.geometry.location;
-      placeMarker(loc.lat,loc.lng,g.formatted_address);
-    }else alert('Không tìm thấy địa chỉ. Thử nhập tọa độ: 10.78, 106.66');
-  }catch{ alert('Mạng chậm hoặc Geocoding lỗi. Thử lại nhé.'); }
+  if(m){ placeMarker(+m[1],+m[2],'Tọa độ nhập tay'); }
 });
 
-let lastMarker=null;
 function placeMarker(lat,lng,label){
   map.setView([lat,lng],17);
   if(lastMarker) map.removeLayer(lastMarker);
@@ -192,15 +190,17 @@ function openStreetView(lat,lng){
   L.popup().setLatLng([lat,lng]).setContent(html).openOn(map);
 }
 
-// ===== GeoJSON + filter + ward search =====
-let gjLayer=null, allFeatures=[], districtIndex=new Map(), wardIndex=new Map();
+/* ================== GEOJSON + FILTER + SEARCH WARD/OLD ================== */
+let gjLayer=null, allFeatures=[], districtIndex=new Map(), wardIndex=new Map(), oldNameIndex=new Map();
 let selectedDistrict=null;
 
 fetch('assets/TPHCM.geojson').then(r=>r.json()).then(geo=>{
   gjLayer=L.geoJSON(geo,{style:baseStyle,onEachFeature:(f,l)=>{
     const p=f.properties||{};
-    const ten=(p.ten_xa??'').toString(); const qh=(p.quan_huyen??'').toString();
-    const sn=(p.sap_nhap && String(p.sap_nhap).trim()!=='0')?p.sap_nhap:'—';
+    const ten=(p.ten_xa??'').toString().trim();
+    const qh=(p.quan_huyen??'').toString().trim();
+    const snRaw=(p.sap_nhap??'').toString().trim();
+    const sn=(snRaw && snRaw!=='0')?snRaw:'—';
     const dt=(p.dtich_km2!=null)?`${p.dtich_km2} km²`:'—';
     const ds=(p.dan_so!=null)?`${Number(p.dan_so).toLocaleString('vi-VN')} người`:'—';
 
@@ -209,18 +209,34 @@ fetch('assets/TPHCM.geojson').then(r=>r.json()).then(geo=>{
     l.on('click',()=>{const c=randColor(); l.setStyle({fillColor:c,fillOpacity:.5}); if(!coloredLayers.includes(l)) coloredLayers.push(l);});
     allFeatures.push({layer:l,props:p});
 
-    // Build indices
+    // Chỉ mục Quận
     if(!districtIndex.has(qh)) districtIndex.set(qh,[]);
     districtIndex.get(qh).push(l);
 
-    const keyWard=normalize(ten);
-    if(!wardIndex.has(keyWard)) wardIndex.set(keyWard,[]);
-    wardIndex.get(keyWard).push(l);
+    // Chỉ mục Phường (tên hiện tại)
+    const kWard=normalize(ten);
+    if(!wardIndex.has(kWard)) wardIndex.set(kWard,[]);
+    wardIndex.get(kWard).push(l);
+
+    // Chỉ mục Tên cũ (sap_nhap có thể là "P5, P7, P9")
+    if(snRaw && snRaw!=='0'){
+      snRaw.split(',').map(s=>s.trim()).filter(Boolean).forEach(old=>{
+        const kOld=normalize(old);
+        if(!oldNameIndex.has(kOld)) oldNameIndex.set(kOld,[]);
+        oldNameIndex.get(kOld).push(l);
+      });
+    }
   }}).addTo(map);
 
-  // Build UI (filter + datalist)
-  buildDistrictControl();
-  buildWardDatalist();
+  // Datalist cho phường hiện tại
+  const dl=document.getElementById('wardList');
+  dl.innerHTML=[...wardIndex.keys()].sort().map(w=>`<option value="${w}">`).join('');
+
+  // Datalist cho tên cũ
+  const dlOld=document.getElementById('oldList');
+  dlOld.innerHTML=[...oldNameIndex.keys()].sort().map(w=>`<option value="${w}">`).join('');
+
+  buildDistrictControl(); // filter 2 cấp
 }).catch(()=>alert('Không tải được assets/TPHCM.geojson, kiểm tra đường dẫn.'));
 
 function baseStyle(){ return {color:'#555',weight:1,fillOpacity:.15}; }
@@ -230,40 +246,39 @@ function varPri(){ return getComputedStyle(document.documentElement).getProperty
 function randColor(){ const a=['#FFD700','#FFA500','#FF4500','#8A2BE2','#1E90FF','#00CED1']; return a[(Math.random()*a.length)|0]; }
 function normalize(s){ return (s||'').toString().trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,''); }
 
-// Datalist for quick ward search
-function buildWardDatalist(){
-  const dl=document.getElementById('wardList');
-  dl.innerHTML=[...wardIndex.keys()].sort().map(w=>`<option value="${w}">`).join('');
-}
+/* ---- tìm phường theo ô #qWard ---- */
 const qWard=document.getElementById('qWard');
 qWard.addEventListener('keydown',e=>{
   if(e.key!=='Enter') return;
-  findWardAndZoom(qWard.value.trim());
+  const v=normalize(qWard.value.trim());
+  if(!v) return;
+  zoomToOneFromIndex(wardIndex,v,'Không tìm thấy phường/xã. Thử gõ rõ hơn.');
 });
-qWard.addEventListener('input',()=>{
-  const v=qWard.value.trim();
-  if(v.length>=3){ /* optional: live preview */ }
+
+/* ---- tìm theo TÊN CŨ (sap_nhap) ô #qOld ---- */
+const qOld=document.getElementById('qOld');
+qOld.addEventListener('keydown',e=>{
+  if(e.key!=='Enter') return;
+  const v=normalize(qOld.value.trim());
+  if(!v) return;
+  zoomToOneFromIndex(oldNameIndex,v,'Không tìm thấy tên cũ. Thử gõ “Phường 5”, “Phường 7”…');
 });
-function findWardAndZoom(input){
-  const q=normalize(input);
-  if(!q) return;
-  // find best match (startsWith → includes)
-  let layers=wardIndex.get(q);
+
+function zoomToOneFromIndex(index,raw,noti){
+  let layers=index.get(raw);
   if(!layers){
-    const hit=[...wardIndex.keys()].find(k=>k.startsWith(q))||[...wardIndex.keys()].find(k=>k.includes(q));
-    if(hit) layers=wardIndex.get(hit);
+    const hit=[...index.keys()].find(k=>k.startsWith(raw))||[...index.keys()].find(k=>k.includes(raw));
+    if(hit) layers=index.get(hit);
   }
-  if(!layers||!layers.length){ alert('Không tìm thấy phường/xã. Thử gõ rõ hơn.'); return; }
-  // use the first matched layer
+  if(!layers||!layers.length){ alert(noti); return; }
   const l=layers[0];
-  // emphasize this ward; deemphasize others but keep district style if same district
   allFeatures.forEach(({layer})=>layer.setStyle(deemphStyle()));
   l.setStyle(emphStyle()); l.bringToFront();
   map.fitBounds(l.getBounds().pad(0.2));
-  l.openPopup(); // auto open popup
+  l.openPopup();
 }
 
-// District + Ward filter control (2 cấp)
+/* ---- Filter 2 cấp Quận → Phường ---- */
 function buildDistrictControl(){
   const Control=L.Control.extend({
     onAdd:function(){
@@ -288,20 +303,18 @@ function buildDistrictControl(){
   const btn=document.getElementById('btnShowAll');
 
   selD.addEventListener('change',()=>{
-    selectedDistrict= selD.value || null;
-    // fill ward dropdown
+    const district= selD.value || null;
+    selectedDistrict=district;
     selW.innerHTML=`<option value="">— Chọn phường/xã —</option>`;
-    if(selectedDistrict){
-      const wards = allFeatures
-        .filter(({props})=>props.quan_huyen===selectedDistrict)
-        .map(({props})=>props.ten_xa);
-      [...new Set(wards)].sort().forEach(w=>{
-        selW.insertAdjacentHTML('beforeend',`<option>${w}</option>`);
-      });
+    if(district){
+      const wards = [...new Set(
+        districtIndex.get(district).map(l=>l.feature?.properties?.ten_xa).filter(Boolean)
+      )].sort();
+      wards.forEach(w=> selW.insertAdjacentHTML('beforeend',`<option>${w}</option>`));
     }
     applyDistrictEmphasis();
-    if(selectedDistrict){
-      const group=L.featureGroup(districtIndex.get(selectedDistrict));
+    if(district){
+      const group=L.featureGroup(districtIndex.get(district));
       map.fitBounds(group.getBounds().pad(0.15));
     }
   });
@@ -309,7 +322,6 @@ function buildDistrictControl(){
   selW.addEventListener('change',()=>{
     const w=selW.value;
     if(!w){ applyDistrictEmphasis(); return; }
-    // emphasize only that ward
     allFeatures.forEach(({layer,props})=>{
       if(props.ten_xa===w){ layer.setStyle(emphStyle()); layer.bringToFront(); map.fitBounds(layer.getBounds().pad(0.2)); layer.openPopup(); }
       else if(selectedDistrict && props.quan_huyen===selectedDistrict){ layer.setStyle(deemphStyle()); }
@@ -332,7 +344,7 @@ function applyDistrictEmphasis(){
   });
 }
 
-// ===== Measure (Polyline/Polygon) =====
+/* ================== MEASURE ================== */
 const drawnItems=new L.FeatureGroup().addTo(map);
 let activeDraw=null;
 function stopMeasure(){if(activeDraw){activeDraw.disable();activeDraw=null;}}
@@ -351,7 +363,7 @@ map.on(L.Draw.Event.CREATED,e=>{
   }
 });
 
-// ===== Compass (small) & GPS =====
+/* ================== COMPASS + GPS ================== */
 const compass=document.getElementById('compassOverlay');
 const ctx=document.getElementById('compassCanvas').getContext('2d');
 let hideTimer=null;
@@ -362,23 +374,16 @@ function drawCompass(deg){
   ctx.restore();
 }
 document.getElementById('btnCompass').onclick=()=>{
-  const show=compass.style.display!=='block'; compass.style.display=show?'block':'none';
-  if(show){ drawCompass(0); autoHide(); }
+  const show=compass.style.display!=='block'; compass.style.display=show?'block':'none'; if(show){ drawCompass(0); autoHide(); }
 };
 function autoHide(){ clearTimeout(hideTimer); hideTimer=setTimeout(()=>{compass.style.display='none';},3000); }
-window.addEventListener('deviceorientation',e=>{
-  if(typeof e.alpha==='number'&&compass.style.display==='block'){ drawCompass(360-e.alpha); autoHide(); }
-});
+window.addEventListener('deviceorientation',e=>{ if(typeof e.alpha==='number'&&compass.style.display==='block'){ drawCompass(360-e.alpha); autoHide(); } });
 const locateCtrl=L.control.locate({strings:{title:"Vị trí của tôi"},showCompass:true,setView:'untilPanOrZoom'});
 document.getElementById('btnGPS').onclick=()=>{ if(!locateCtrl._map) locateCtrl.addTo(map); locateCtrl.start(); };
 
-// ===== Clear colored fills =====
+/* ================== MISC ================== */
 document.getElementById('btnClear').onclick=()=>{ coloredLayers.forEach(l=>l.setStyle({fillColor:null,fillOpacity:.15})); coloredLayers=[]; };
-
-// ===== Coords footer =====
 map.on('mousemove',e=>document.getElementById('coords').textContent=`Lat:${e.latlng.lat.toFixed(5)}, Lng:${e.latlng.lng.toFixed(5)}`);
-
-// ===== TSBĐ quick actions =====
 document.getElementById('tsbdPin').onclick=()=>{
   const lat=parseFloat(document.getElementById('tsbdLat').value);
   const lng=parseFloat(document.getElementById('tsbdLng').value);
