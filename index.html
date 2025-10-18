@@ -3,48 +3,58 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>WebGIS – Search tô màu phường (34 tỉnh)</title>
+<title>WebGIS — Search tô màu Phường/Xã (34 tỉnh)</title>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/@turf/turf@6.5.0/turf.min.js"></script>
+
+<!-- GIỮ NGUYÊN API KEY CỦA ANH -->
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyARhMzsywQPyQbrbgS6aFVb5sg7eSV34oA&libraries=places,geometry"></script>
 
 <style>
 html,body,#map{height:100%;margin:0}
 body{font-family:system-ui,Segoe UI,Roboto,Arial}
-#searchbar{position:absolute;left:50%;top:12px;transform:translateX(-50%);z-index:1200;width:820px;max-width:92vw}
+#searchbar{position:absolute;left:50%;top:12px;transform:translateX(-50%);z-index:1200;width:860px;max-width:94vw}
 #q{width:100%;padding:12px 14px;border:1px solid #cfd4dc;border-radius:14px;box-shadow:0 2px 10px rgba(0,0,0,.15)}
-#tools{position:absolute;right:12px;top:76px;z-index:1200;display:flex;flex-direction:column;gap:10px}
+#tools{position:absolute;right:12px;top:74px;z-index:1200;display:flex;flex-direction:column;gap:10px}
 .tool{width:46px;height:46px;border-radius:50%;background:#fff;border:1px solid #ddd;box-shadow:0 2px 8px rgba(0,0,0,.2);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:20px}
-#map .leaflet-popup-content{min-width:260px}
+#map .leaflet-popup-content{min-width:270px}
 .badge{display:inline-block;padding:2px 6px;border-radius:6px;background:#eef4ff;border:1px solid #d7e3ff;color:#2051d8;font-size:12px;margin-left:6px}
 .coords{position:absolute;left:8px;bottom:6px;background:rgba(255,255,255,.9);padding:4px 8px;border-radius:8px;font:12px monospace;z-index:1000}
 @media(max-width:640px){#searchbar{top:10px} .tool{width:44px;height:44px}}
 </style>
 </head>
 <body>
-<div id="searchbar"><input id="q" placeholder="🔍 Địa chỉ / phường/xã cũ / tọa độ (vd: 10.79844, 106.65855)" autocomplete="off"></div>
+<div id="searchbar">
+  <input id="q" placeholder="🔍 Địa chỉ / phường (tên cũ cũng được) / tọa độ (vd: 10.79844, 106.65855)" autocomplete="off">
+</div>
+
 <div id="tools">
   <div class="tool" id="btnClear" title="Xóa tô màu">🧹</div>
   <div class="tool" id="btnGPS"   title="Định vị">📍</div>
-  <div class="tool" id="btnEye"   title="Xem Street View">👁️</div>
+  <div class="tool" id="btnEye"   title="Xem Street View (vị trí hiện tại)">👁️</div>
 </div>
+
 <div id="map"></div>
 <div class="coords" id="coords">Lat: —, Lng: —</div>
 
 <script>
-// =================== MAP ===================
+// ============= MAP =============
 const map=L.map('map',{center:[10.77,106.67],zoom:12});
-const osm=L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
-const gHybrid=L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}',{attribution:'© Google'});
-let activeFill=null, activeWardLayer=null, activeProvinceSlug=null;
-let provinceLayersCache={}, geoCache={}, placeMarker=null;
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+  maxZoom:19,attribution:'© OpenStreetMap'
+}).addTo(map);
 
-map.on('mousemove',e=>{document.getElementById('coords').textContent=`Lat:${e.latlng.lat.toFixed(5)}, Lng:${e.latlng.lng.toFixed(5)}`;});
+let placeMarker=null, wardLayer=null;
+const geoCache={}; // slug -> GeoJSON
 
-// =========== 34 tỉnh/thành (slug khớp tên file assets/<slug>.geojson) ===========
-const PROVINCE_NAME_TO_SLUG = {
+map.on('mousemove',e=>{
+  document.getElementById('coords').textContent=`Lat:${e.latlng.lat.toFixed(5)}, Lng:${e.latlng.lng.toFixed(5)}`;
+});
+
+// ============= SLUG 34 TỈNH (đặt theo tên file trong /assets) =============
+const SLUG = {
  'TP Hà Nội':'hanoi','Hà Nội':'hanoi','Ha Noi':'hanoi',
  'TP.HCM':'hcm','Thành phố Hồ Chí Minh':'hcm','Ho Chi Minh City':'hcm',
  'Đà Nẵng':'danang','Da Nang':'danang',
@@ -57,7 +67,7 @@ const PROVINCE_NAME_TO_SLUG = {
  'Sơn La':'sonla','Tây Ninh':'tayninh','Thái Nguyên':'thainguyen','Thanh Hóa':'thanhhoa','Tuyên Quang':'tuyenquang','Vĩnh Long':'vinhlong'
 };
 
-// =================== GOOGLE PLACES AUTOCOMPLETE ===================
+// ============= GOOGLE AUTOCOMPLETE =============
 const input=document.getElementById('q');
 const ac=new google.maps.places.Autocomplete(input,{
   fields:['geometry','formatted_address','address_components','name'],
@@ -65,17 +75,17 @@ const ac=new google.maps.places.Autocomplete(input,{
 });
 ac.addListener('place_changed', async ()=>{
   const pl=ac.getPlace();
-  if(!pl || !pl.geometry){ // thử parse tọa độ thô
-    const ll=parseLatLngFromText(input.value);
-    if(ll){ moveTo(ll.lat,ll.lng, true); return; }
+  if(!pl || !pl.geometry){
+    const ll=parseLatLng(input.value);
+    if(ll){ goto(ll.lat,ll.lng,true); return; }
     alert('Không xác định được vị trí.'); return;
   }
   const lat=pl.geometry.location.lat(), lng=pl.geometry.location.lng();
-  moveTo(lat,lng,true, pl);
+  goto(lat,lng,true, pl);
 });
 
-// Gõ tọa độ "lat, lng"
-function parseLatLngFromText(txt){
+// Nhập "lat, lng"
+function parseLatLng(txt){
   const m=txt.trim().match(/(-?\d+\.?\d*)\s*,\s*(-?\d+\.?\d*)/);
   if(!m) return null;
   const lat=parseFloat(m[1]), lng=parseFloat(m[2]);
@@ -83,125 +93,111 @@ function parseLatLngFromText(txt){
   return null;
 }
 
-// =================== MOVE + COLOR WARD ===================
-async function moveTo(lat,lng, openPopup=false, placeObj=null){
+// ============= MOVE & COLOR =============
+async function goto(lat,lng, openPopup=false, placeObj=null){
   map.setView([lat,lng], 17);
   if(placeMarker) map.removeLayer(placeMarker);
   placeMarker=L.marker([lat,lng]).addTo(map);
 
-  // Lấy tên tỉnh từ address_components
-  let provinceName=null;
-  if(placeObj && placeObj.address_components){
-    for(const c of placeObj.address_components){
-      if(c.types.includes('administrative_area_level_1')){ provinceName=c.long_name; break; }
-    }
-  }
-  // Nếu không có, thử reverse geocode nhanh bằng Google (chỉ fallback)
-  if(!provinceName){
-    try{
-      const g=new google.maps.Geocoder();
-      g.geocode({location:{lat,lng}},(results,status)=>{
-        if(status==='OK' && results?.[0]){
-          const comps=results[0].address_components||[];
-          const found=comps.find(x=>x.types.includes('administrative_area_level_1'));
-          colorByProvince(found?.long_name||null);
-        }else colorByProvince(null);
-      });
-    }catch(e){ colorByProvince(null); }
-  }else{
-    colorByProvince(provinceName);
-  }
-
-  // popup marker cơ bản + nút 👁️ StreetView
-  const addr = (placeObj && placeObj.formatted_address) ? placeObj.formatted_address : `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+  // popup cơ bản + nút 👁️ (nhấn mới mở)
+  const addr=(placeObj && placeObj.formatted_address) ? placeObj.formatted_address : `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
   placeMarker.bindPopup(`
     <b>${addr}</b>
-    <div style="margin-top:6px">
-      <button onclick="showStreet(${lat},${lng})">👁️ Xem Street View</button>
-    </div>
+    <div style="margin-top:6px"><button onclick="openSV(${lat},${lng})">👁️ Xem Street View</button></div>
   `);
   if(openPopup) placeMarker.openPopup();
+
+  // xác định tỉnh từ address_components
+  let pName=null;
+  if(placeObj && placeObj.address_components){
+    const f=placeObj.address_components.find(c=>c.types.includes('administrative_area_level_1'));
+    if(f) pName=f.long_name;
+  }
+  if(!pName){
+    // fallback reverse geocode (nhanh)
+    try{
+      const g=new google.maps.Geocoder();
+      g.geocode({location:{lat,lng}},(res,st)=>{
+        if(st==='OK'&&res?.[0]){
+          const c=res[0].address_components||[];
+          const f=c.find(x=>x.types.includes('administrative_area_level_1'));
+          highlightByProvince(f?.long_name||null);
+        } else highlightByProvince(null);
+      });
+    }catch(e){ highlightByProvince(null); }
+  }else{
+    highlightByProvince(pName);
+  }
 }
 
-// Ánh xạ tên tỉnh → slug, rồi fetch geojson & tìm phường chứa điểm
-async function colorByProvince(provinceName){
-  if(!provinceName){ return; }
-  const slug = PROVINCE_NAME_TO_SLUG[provinceName] || PROVINCE_NAME_TO_SLUG[provinceName.replace('Thành phố ','TP ')] || null;
-  if(!slug){ return; }
-  activeProvinceSlug=slug;
+// tô phường nếu có geojson của tỉnh
+async function highlightByProvince(provinceName){
+  if(!provinceName) return;
+  const slug = SLUG[provinceName] || SLUG[provinceName.replace('Thành phố ','TP ')];
+  if(!slug) return;
 
   try{
-    const gj = await getProvinceGeo(slug);
-    const latlng = placeMarker.getLatLng();
-    const pt = turf.point([latlng.lng, latlng.lat]);
+    const gj=await getGeo(slug);
+    const {lat,lng}=placeMarker.getLatLng();
+    const pt=turf.point([lng,lat]);
 
-    let foundFeat=null;
+    let found=null;
     for(const f of gj.features){
       if(!f || !f.geometry) continue;
-      if(turf.booleanPointInPolygon(pt, f)){ foundFeat=f; break; }
+      if(turf.booleanPointInPolygon(pt,f)){ found=f; break; }
     }
-    if(!foundFeat){ return; }
+    if(!found) return;
 
-    // Hightlight phường
-    if(activeWardLayer) map.removeLayer(activeWardLayer);
-    activeWardLayer = L.geoJSON(foundFeat,{
-      style:{color:'#ff6b00',weight:2,fillColor:'#ffd9a6',fillOpacity:.45}
-    }).addTo(map);
+    if(wardLayer) map.removeLayer(wardLayer);
+    wardLayer=L.geoJSON(found,{style:{color:'#ff6b00',weight:2,fillColor:'#ffd9a6',fillOpacity:.45}}).addTo(map);
 
-    // Popup thông tin (đổi màu tự động theo click)
-    const p = foundFeat.properties || {};
-    const xa  = p.ten_xa || p.xa || p.NAME_3 || '—';
-    const qh  = p.quan_huyen || p.NAME_2 || '—';
-    const tinh= p.tinh || p.NAME_1 || provinceName || '—';
-    const dt  = p.dtich_km2 ? `${(+p.dtich_km2).toLocaleString('vi-VN')} km²` : (p.area ? p.area+' km²' : '—');
-    const ds  = p.dan_so ? `${(+p.dan_so).toLocaleString('vi-VN')} người` : '—';
-    const sn  = p.sap_nhap || p.ten_cu || '';
+    const p=found.properties||{};
+    const xa = p.ten_xa || p.xa || p.NAME_3 || '—';
+    const qh = p.quan_huyen || p.NAME_2 || '—';
+    const tinh = p.tinh || p.NAME_1 || provinceName || '—';
+    const dt = p.dtich_km2 ? `${(+p.dtich_km2).toLocaleString('vi-VN')} km²` : (p.area ? p.area+' km²' : '—');
+    const ds = p.dan_so ? `${(+p.dan_so).toLocaleString('vi-VN')} người` : '—';
+    const sn = p.sap_nhap || p.ten_cu || '';
 
-    const latlng = placeMarker.getLatLng();
-    const html = `
+    const ll=placeMarker.getLatLng();
+    const html=`
       <div>
         <div style="font-weight:700">${xa} <span class="badge">${tinh}</span></div>
         <div>${qh}</div>
         <div>Diện tích: ${dt} • Dân số: ${ds}</div>
         ${sn?`<div>Trước sáp nhập: ${sn}</div>`:''}
-        <div style="margin-top:6px"><button onclick="showStreet(${latlng.lat},${latlng.lng})">👁️ Xem Street View tại vị trí này</button></div>
+        <div style="margin-top:6px"><button onclick="openSV(${ll.lat},${ll.lng})">👁️ Xem Street View tại vị trí này</button></div>
       </div>`;
-    L.popup({offset:[0,-6]}).setLatLng(latlng).setContent(html).openOn(map);
+    L.popup({offset:[0,-6]}).setLatLng(ll).setContent(html).openOn(map);
 
   }catch(e){
-    // Không có file tỉnh → thôi không tô
+    // không có file tỉnh -> bỏ qua
   }
 }
 
-async function getProvinceGeo(slug){
+async function getGeo(slug){
   if(geoCache[slug]) return geoCache[slug];
-  const res = await fetch(`assets/${slug}.geojson`);
-  if(!res.ok) throw new Error('Missing geojson for '+slug);
-  const gj = await res.json();
-  geoCache[slug]=gj;
-  return gj;
+  const res=await fetch(`assets/${slug}.geojson`);
+  if(!res.ok) throw new Error('missing geojson');
+  const gj=await res.json(); geoCache[slug]=gj; return gj;
 }
 
-// =================== TOOLS ===================
-document.getElementById('btnClear').onclick=()=>{
-  if(activeWardLayer){ map.removeLayer(activeWardLayer); activeWardLayer=null; }
-};
+// ============= TOOLS =============
+document.getElementById('btnClear').onclick=()=>{ if(wardLayer){map.removeLayer(wardLayer);wardLayer=null;} };
 document.getElementById('btnGPS').onclick=()=>{
   map.locate({setView:true,maxZoom:17});
-  map.once('locationfound',e=>moveTo(e.latlng.lat,e.latlng.lng,true));
+  map.once('locationfound',e=>goto(e.latlng.lat,e.latlng.lng,true));
 };
 document.getElementById('btnEye').onclick=()=>{
   if(!placeMarker){alert('Chưa có vị trí. Tìm địa chỉ/toạ độ trước.');return;}
-  const {lat,lng}=placeMarker.getLatLng();
-  showStreet(lat,lng,true);
+  const {lat,lng}=placeMarker.getLatLng(); openSV(lat,lng);
 };
 
-// iframe Street View trong popup (khung nhỏ — phù hợp mobile)
-window.showStreet = (lat,lng, openSeparate)=>{
-  const html = `<iframe style="width:340px;max-width:86vw;height:200px;border:0;border-radius:8px"
-    src="https://www.google.com/maps?q=&layer=c&cbll=${lat},${lng}&cbp=11,0,0,0,0&z=18" allowfullscreen></iframe>`;
-  const ll = L.latLng(lat,lng);
-  L.popup().setLatLng(ll).setContent(html).openOn(map);
+// street view (chỉ hiện khi bấm 👁️)
+window.openSV=(lat,lng)=>{
+  const html=`<iframe style="width:340px;max-width:86vw;height:200px;border:0;border-radius:8px"
+      src="https://www.google.com/maps?q=&layer=c&cbll=${lat},${lng}&cbp=11,0,0,0,0&z=18" allowfullscreen></iframe>`;
+  L.popup().setLatLng([lat,lng]).setContent(html).openOn(map);
 };
 </script>
 </body>
