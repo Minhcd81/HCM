@@ -3,202 +3,417 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>WebGIS — Search tô màu Phường/Xã (34 tỉnh)</title>
+<title>WebGIS — TSBĐ/TSSS + Search + 34 tỉnh</title>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
 <script src="https://unpkg.com/@turf/turf@6.5.0/turf.min.js"></script>
 
-<!-- GIỮ NGUYÊN API KEY CỦA ANH -->
+<!-- Leaflet.Draw -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css"/>
+<script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
+
+<!-- Google Maps JS + GoogleMutant for Leaflet -->
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyARhMzsywQPyQbrbgS6aFVb5sg7eSV34oA&libraries=places,geometry"></script>
+<script src="https://unpkg.com/leaflet.gridlayer.googlemutant@0.13.5/dist/Leaflet.GoogleMutant.js"></script>
+
+<!-- SheetJS for Excel -->
+<script src="https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
 <style>
 html,body,#map{height:100%;margin:0}
 body{font-family:system-ui,Segoe UI,Roboto,Arial}
-#searchbar{position:absolute;left:50%;top:12px;transform:translateX(-50%);z-index:1200;width:860px;max-width:94vw}
-#q{width:100%;padding:12px 14px;border:1px solid #cfd4dc;border-radius:14px;box-shadow:0 2px 10px rgba(0,0,0,.15)}
-#tools{position:absolute;right:12px;top:74px;z-index:1200;display:flex;flex-direction:column;gap:10px}
-.tool{width:46px;height:46px;border-radius:50%;background:#fff;border:1px solid #ddd;box-shadow:0 2px 8px rgba(0,0,0,.2);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:20px}
-#map .leaflet-popup-content{min-width:270px}
+:root{--pri:#00BFFF}
+
+#searchbar{position:absolute;left:50%;top:10px;transform:translateX(-50%);z-index:1400;width:900px;max-width:94vw}
+#q{width:100%;padding:12px 14px;border:1px solid #cfd4dc;border-radius:14px;box-shadow:0 2px 10px rgba(0,0,0,.12)}
+
+#tools{position:absolute;right:10px;top:80px;z-index:1300;display:flex;flex-direction:column;gap:10px}
+.tool{width:46px;height:46px;border-radius:50%;background:#fff;border:1px solid #ddd;box-shadow:0 2px 8px rgba(0,0,0,.18);
+      display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:20px}
+
+#panel{position:absolute;left:10px;top:66px;width:340px;max-width:94vw;background:#fff;border:1px solid #e3e7ef;border-radius:14px;
+       box-shadow:0 8px 30px rgba(0,0,0,.18);z-index:1500;padding:10px 12px}
+#panel h3{margin:6px 0 10px}
+.section{background:#f9fcff;border:1px solid #e6f2ff;border-radius:12px;padding:10px;margin-bottom:10px}
+.section .row{display:flex;gap:8px;margin-top:8px}
+.section input,.section textarea{flex:1;padding:8px;border:1px solid #cfd4dc;border-radius:10px}
+.section button{padding:8px 10px;border:1px solid #cfd4dc;border-radius:10px;background:#fff;cursor:pointer}
 .badge{display:inline-block;padding:2px 6px;border-radius:6px;background:#eef4ff;border:1px solid #d7e3ff;color:#2051d8;font-size:12px;margin-left:6px}
-.coords{position:absolute;left:8px;bottom:6px;background:rgba(255,255,255,.9);padding:4px 8px;border-radius:8px;font:12px monospace;z-index:1000}
-@media(max-width:640px){#searchbar{top:10px} .tool{width:44px;height:44px}}
+
+#compass{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:320px;height:320px;border-radius:50%;
+         display:none;z-index:1600;pointer-events:none}
+#compass svg{width:100%;height:100%}
+.coords{position:absolute;left:10px;bottom:6px;background:rgba(255,255,255,.9);padding:4px 8px;border-radius:8px;font:12px monospace;z-index:1100}
+
+.popup-sv{width:350px;max-width:86vw;height:250px;border:0;border-radius:10px}
+.layerbox{position:absolute;right:10px;top:10px;z-index:1500;background:#fff;border:1px solid #ddd;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,.18);padding:8px}
+.layerbox label{display:block;margin:4px 2px 2px}
+@media(max-width:640px){#panel{left:8px;right:8px}#tools{top:72px}}
 </style>
 </head>
 <body>
 <div id="searchbar">
-  <input id="q" placeholder="🔍 Địa chỉ / phường (tên cũ cũng được) / tọa độ (vd: 10.79844, 106.65855)" autocomplete="off">
-</div>
-
-<div id="tools">
-  <div class="tool" id="btnClear" title="Xóa tô màu">🧹</div>
-  <div class="tool" id="btnGPS"   title="Định vị">📍</div>
-  <div class="tool" id="btnEye"   title="Xem Street View (vị trí hiện tại)">👁️</div>
+  <input id="q" placeholder="🔍 Địa chỉ / phường tên cũ / tọa độ (vd: 10.79844, 106.65855)" autocomplete="off">
 </div>
 
 <div id="map"></div>
+
+<!-- layer chooser (OSM / Esri / Google) -->
+<div class="layerbox">
+  <div><b>Basemap</b></div>
+  <label><input type="radio" name="base" value="osm" checked> OSM</label>
+  <label><input type="radio" name="base" value="esri"> Esri Satellite</label>
+  <label><input type="radio" name="base" value="groad"> Google Road</label>
+  <label><input type="radio" name="base" value="ghyb"> Google Hybrid</label>
+</div>
+
+<!-- right tools -->
+<div id="tools">
+  <div class="tool" id="btnMeasure" title="Đo (line/area)">📏</div>
+  <div class="tool" id="btnCompass" title="La bàn">🧭</div>
+  <div class="tool" id="btnGPS" title="Định vị">📍</div>
+  <div class="tool" id="btnClear" title="Xóa tô màu">🧹</div>
+</div>
+
+<!-- left panel TSBĐ/TSSS -->
+<div id="panel">
+  <h3>📘 TSBĐ / TSSS</h3>
+  <div class="section" id="tsbdBox">
+    <b>TSBĐ</b>
+    <div class="row"><input id="tsbdAddr" placeholder="Địa chỉ / mô tả"></div>
+    <div class="row"><input id="tsbdLat" placeholder="Lat"><input id="tsbdLng" placeholder="Lng"></div>
+    <div class="row">
+      <button id="tsbdPin">📍 Đặt điểm</button>
+      <button id="tsbdSV">👁️ Street View</button>
+      <button id="shotPNG">📸 PNG</button>
+      <button id="shotJPG">JPG</button>
+    </div>
+    <div id="tsbdInfo" style="font-size:12px;color:#4b5563;margin-top:4px">Chưa có điểm.</div>
+  </div>
+
+  <div class="section" id="tsssBox">
+    <b>Tài sản so sánh (TSSS)</b>
+    <div class="row"><input id="tsssAddr" placeholder="Tên / địa chỉ"><input id="tsssVal" placeholder="Giá (tỷ)"></div>
+    <div class="row"><input id="tsssLat" placeholder="Lat"><input id="tsssLng" placeholder="Lng"></div>
+    <div class="row">
+      <button id="tsssAdd">➕ Thêm</button>
+      <button id="tsssClear">🗑️ Xóa TSSS</button>
+      <button id="btnCSV">CSV</button>
+      <button id="btnXLSX">Excel</button>
+    </div>
+    <div id="tsssList" style="font-size:12px;color:#4b5563">Chưa có mục so sánh nào.</div>
+  </div>
+</div>
+
+<!-- compass overlay -->
+<div id="compass">
+  <svg viewBox="0 0 100 100">
+    <circle cx="50" cy="50" r="49" fill="rgba(255,255,255,0)" stroke="#bbb" stroke-width="1"/>
+    <text x="50" y="8" text-anchor="middle" font-size="8" fill="#d00">B</text>
+    <text x="50" y="96" text-anchor="middle" font-size="8">N</text>
+    <text x="92" y="53" font-size="8">Đ</text>
+    <text x="6"  y="53" font-size="8">T</text>
+    <g id="needle" transform="rotate(0 50 50)">
+      <polygon points="50,12 54,50 46,50" fill="#e11"/>
+      <polygon points="50,88 54,50 46,50" fill="#444"/>
+    </g>
+  </svg>
+</div>
+
 <div class="coords" id="coords">Lat: —, Lng: —</div>
 
 <script>
-// ============= MAP =============
-const map=L.map('map',{center:[10.77,106.67],zoom:12});
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
-  maxZoom:19,attribution:'© OpenStreetMap'
-}).addTo(map);
+/* ====== MAP & BASELAYERS ====== */
+const map=L.map('map',{center:[10.77,106.67],zoom:13});
+const osm=L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
+const esri=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}');
+const gRoad=L.gridLayer.googleMutant({type:'roadmap'});
+const gHyb=L.gridLayer.googleMutant({type:'hybrid'});
 
-let placeMarker=null, wardLayer=null;
-const geoCache={}; // slug -> GeoJSON
-
-map.on('mousemove',e=>{
-  document.getElementById('coords').textContent=`Lat:${e.latlng.lat.toFixed(5)}, Lng:${e.latlng.lng.toFixed(5)}`;
+// Layer chooser events
+document.querySelectorAll('input[name="base"]').forEach(r=>{
+  r.onchange=()=>{
+    [osm,esri,gRoad,gHyb].forEach(l=>map.removeLayer(l));
+    if(r.value==='osm') osm.addTo(map);
+    if(r.value==='esri') esri.addTo(map);
+    if(r.value==='groad') gRoad.addTo(map);
+    if(r.value==='ghyb') gHyb.addTo(map);
+  };
 });
 
-// ============= SLUG 34 TỈNH (đặt theo tên file trong /assets) =============
-const SLUG = {
- 'TP Hà Nội':'hanoi','Hà Nội':'hanoi','Ha Noi':'hanoi',
- 'TP.HCM':'hcm','Thành phố Hồ Chí Minh':'hcm','Ho Chi Minh City':'hcm',
- 'Đà Nẵng':'danang','Da Nang':'danang',
- 'Thừa Thiên Huế':'hue','TP Huế':'hue','Hue':'hue',
- 'Hải Phòng':'haiphong','Hai Phong':'haiphong',
- 'An Giang':'angiang','Bắc Ninh':'bacninh','Lâm Đồng':'lamdong','Cà Mau':'camau','Cần Thơ':'cantho','Cao Bằng':'caobang',
- 'Đắk Lắk':'daklak','Điện Biên':'dienbien','Đồng Nai':'dongnai','Đồng Tháp':'dongthap','Gia Lai':'gialai',
- 'Hà Tĩnh':'hatinh','Hưng Yên':'hungyen','Khánh Hòa':'khanhhoa','Lai Châu':'laichau','Lạng Sơn':'langson','Lào Cai':'laocai',
- 'Nghệ An':'nghean','Ninh Bình':'ninhbinh','Phú Thọ':'phutho','Quảng Ngãi':'quangngai','Quảng Ninh':'quangninh','Quảng Trị':'quangtri',
- 'Sơn La':'sonla','Tây Ninh':'tayninh','Thái Nguyên':'thainguyen','Thanh Hóa':'thanhhoa','Tuyên Quang':'tuyenquang','Vĩnh Long':'vinhlong'
-};
+let wardLayer=null, placeMarker=null, tsbdMarker=null;
+const tsssMarkers=[];
+const geoCache={};
 
-// ============= GOOGLE AUTOCOMPLETE =============
+/* ====== AUTOCOMPLETE ====== */
 const input=document.getElementById('q');
 const ac=new google.maps.places.Autocomplete(input,{
   fields:['geometry','formatted_address','address_components','name'],
   componentRestrictions:{country:'vn'}
 });
-ac.addListener('place_changed', async ()=>{
+ac.addListener('place_changed',()=>{
   const pl=ac.getPlace();
-  if(!pl || !pl.geometry){
-    const ll=parseLatLng(input.value);
-    if(ll){ goto(ll.lat,ll.lng,true); return; }
-    alert('Không xác định được vị trí.'); return;
+  if(!pl||!pl.geometry){
+    const ll=parseLatLng(input.value); if(ll) goto(ll.lat,ll.lng,true); else alert('Không xác định được vị trí.');
+    return;
   }
-  const lat=pl.geometry.location.lat(), lng=pl.geometry.location.lng();
-  goto(lat,lng,true, pl);
+  goto(pl.geometry.location.lat(),pl.geometry.location.lng(),true,pl);
 });
-
-// Nhập "lat, lng"
 function parseLatLng(txt){
   const m=txt.trim().match(/(-?\d+\.?\d*)\s*,\s*(-?\d+\.?\d*)/);
-  if(!m) return null;
-  const lat=parseFloat(m[1]), lng=parseFloat(m[2]);
-  if(isFinite(lat)&&isFinite(lng)) return {lat,lng};
-  return null;
+  if(!m) return null; const lat=+m[1], lng=+m[2];
+  if(isFinite(lat)&&isFinite(lng)) return {lat,lng}; return null;
 }
 
-// ============= MOVE & COLOR =============
+/* ====== SLUG 34 TỈNH (file assets/<slug>.geojson) ====== */
+const SLUG={
+ 'TP.HCM':'hcm','Thành phố Hồ Chí Minh':'hcm','Ho Chi Minh City':'hcm',
+ 'An Giang':'angiang','Đồng Tháp':'dongthap','Cần Thơ':'cantho','Vĩnh Long':'vinhlong','Tây Ninh':'tayninh','Đồng Nai':'dongnai',
+ 'Bà Rịa - Vũng Tàu':'bariavungtau','Bình Dương':'binhduong','Bình Phước':'binhphuoc','Long An':'longan','Tiền Giang':'tiengiang',
+ 'Bến Tre':'bentre','Trà Vinh':'travinh','Sóc Trăng':'soctrang','Bạc Liêu':'baclieu','Cà Mau':'camau','Kiên Giang':'kiengiang',
+ 'Hà Nội':'hanoi','Đà Nẵng':'danang','Khánh Hòa':'khanhhoa','Thừa Thiên Huế':'hue','Quảng Ninh':'quangninh','Nghệ An':'nghean',
+ 'Thanh Hóa':'thanhhoa','Thái Nguyên':'thainguyen','Bắc Ninh':'bacninh','Lâm Đồng':'lamdong','Gia Lai':'gialai','Quảng Ngãi':'quangngai',
+ 'Quảng Trị':'quangtri','Sơn La':'sonla','Phú Thọ':'phutho','Lào Cai':'laocai'
+};
+
+/* ====== GOTO + HIGHLIGHT ====== */
+map.on('mousemove',e=>{
+  document.getElementById('coords').textContent=`Lat:${e.latlng.lat.toFixed(5)}, Lng:${e.latlng.lng.toFixed(5)}`;
+});
+
 async function goto(lat,lng, openPopup=false, placeObj=null){
   map.setView([lat,lng], 17);
   if(placeMarker) map.removeLayer(placeMarker);
   placeMarker=L.marker([lat,lng]).addTo(map);
 
-  // popup cơ bản + nút 👁️ (nhấn mới mở)
-  const addr=(placeObj && placeObj.formatted_address) ? placeObj.formatted_address : `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+  const addr=(placeObj?.formatted_address)||`${lat.toFixed(6)}, ${lng.toFixed(6)}`;
   placeMarker.bindPopup(`
-    <b>${addr}</b>
-    <div style="margin-top:6px"><button onclick="openSV(${lat},${lng})">👁️ Xem Street View</button></div>
+    <div><b>${addr}</b></div>
+    <div style="margin-top:6px"><button onclick="openSV(${lat},${lng})">👁️ Street View</button></div>
   `);
   if(openPopup) placeMarker.openPopup();
 
-  // xác định tỉnh từ address_components
-  let pName=null;
-  if(placeObj && placeObj.address_components){
+  // detect province from place
+  let pname=null;
+  if(placeObj?.address_components){
     const f=placeObj.address_components.find(c=>c.types.includes('administrative_area_level_1'));
-    if(f) pName=f.long_name;
+    pname=f?.long_name||null;
   }
-  if(!pName){
-    // fallback reverse geocode (nhanh)
-    try{
-      const g=new google.maps.Geocoder();
-      g.geocode({location:{lat,lng}},(res,st)=>{
-        if(st==='OK'&&res?.[0]){
-          const c=res[0].address_components||[];
-          const f=c.find(x=>x.types.includes('administrative_area_level_1'));
-          highlightByProvince(f?.long_name||null);
-        } else highlightByProvince(null);
-      });
-    }catch(e){ highlightByProvince(null); }
-  }else{
-    highlightByProvince(pName);
-  }
+  if(!pname){
+    const g=new google.maps.Geocoder();
+    g.geocode({location:{lat,lng}},(res,st)=>{
+      if(st==='OK'&&res?.[0]){
+        const c=res[0].address_components||[];
+        const f=c.find(x=>x.types.includes('administrative_area_level_1'));
+        highlightProvince(f?.long_name||null);
+      }
+    });
+  }else highlightProvince(pname);
 }
 
-// tô phường nếu có geojson của tỉnh
-async function highlightByProvince(provinceName){
+async function highlightProvince(provinceName){
   if(!provinceName) return;
-  const slug = SLUG[provinceName] || SLUG[provinceName.replace('Thành phố ','TP ')];
+  const slug = SLUG[provinceName] || SLUG[provinceName.replace('Thành phố ','TP.')];
   if(!slug) return;
+  const gj=await getGeo(slug);
+  const {lat,lng}=placeMarker.getLatLng();
+  const pt=turf.point([lng,lat]);
+  let found=null;
+  for(const f of gj.features){ if(turf.booleanPointInPolygon(pt,f)){ found=f; break; } }
+  if(!found) return;
+  drawWard(found, provinceName);
+}
 
-  try{
-    const gj=await getGeo(slug);
-    const {lat,lng}=placeMarker.getLatLng();
-    const pt=turf.point([lng,lat]);
+function drawWard(feature, provinceName){
+  if(wardLayer) map.removeLayer(wardLayer);
+  const palette=['#ffd166','#fca311','#00bcd4','#ff6b6b','#ea80fc','#90caf9','#a5d6a7'];
+  const fill=palette[Math.floor(Math.random()*palette.length)];
+  wardLayer=L.geoJSON(feature,{style:{color:'#ff6b00',weight:2,fillColor:fill,fillOpacity:.45}})
+   .on('click',e=>{
+      // click phường khác -> đổi màu ngẫu nhiên
+      const newFill=palette[Math.floor(Math.random()*palette.length)];
+      e.layer.setStyle({fillColor:newFill});
+   })
+   .addTo(map);
 
-    let found=null;
-    for(const f of gj.features){
-      if(!f || !f.geometry) continue;
-      if(turf.booleanPointInPolygon(pt,f)){ found=f; break; }
-    }
-    if(!found) return;
+  const p=feature.properties||{};
+  const xa = p.ten_xa || p.xa || p.NAME_3 || '—';
+  const qh = p.quan_huyen || p.NAME_2 || '—';
+  const tinh = p.tinh || p.NAME_1 || provinceName || '—';
+  const dt = p.dtich_km2 ? `${(+p.dtich_km2).toLocaleString('vi-VN')} km²` : '—';
+  const ds = p.dan_so ? `${(+p.dan_so).toLocaleString('vi-VN')} người` : '—';
+  const sn = p.sap_nhap || p.ten_cu || '';
 
-    if(wardLayer) map.removeLayer(wardLayer);
-    wardLayer=L.geoJSON(found,{style:{color:'#ff6b00',weight:2,fillColor:'#ffd9a6',fillOpacity:.45}}).addTo(map);
-
-    const p=found.properties||{};
-    const xa = p.ten_xa || p.xa || p.NAME_3 || '—';
-    const qh = p.quan_huyen || p.NAME_2 || '—';
-    const tinh = p.tinh || p.NAME_1 || provinceName || '—';
-    const dt = p.dtich_km2 ? `${(+p.dtich_km2).toLocaleString('vi-VN')} km²` : (p.area ? p.area+' km²' : '—');
-    const ds = p.dan_so ? `${(+p.dan_so).toLocaleString('vi-VN')} người` : '—';
-    const sn = p.sap_nhap || p.ten_cu || '';
-
-    const ll=placeMarker.getLatLng();
-    const html=`
-      <div>
-        <div style="font-weight:700">${xa} <span class="badge">${tinh}</span></div>
-        <div>${qh}</div>
-        <div>Diện tích: ${dt} • Dân số: ${ds}</div>
-        ${sn?`<div>Trước sáp nhập: ${sn}</div>`:''}
-        <div style="margin-top:6px"><button onclick="openSV(${ll.lat},${ll.lng})">👁️ Xem Street View tại vị trí này</button></div>
-      </div>`;
-    L.popup({offset:[0,-6]}).setLatLng(ll).setContent(html).openOn(map);
-
-  }catch(e){
-    // không có file tỉnh -> bỏ qua
-  }
+  const ll=placeMarker.getLatLng();
+  L.popup({offset:[0,-6]}).setLatLng(ll).setContent(`
+    <div><b>${xa}</b> <span class="badge">${tinh}</span><div>${qh}</div>
+    <div>Diện tích: ${dt} • Dân số: ${ds}</div>
+    ${sn?`<div>Trước sáp nhập: ${sn}</div>`:''}
+    <div style="margin-top:6px"><button onclick="openSV(${ll.lat},${ll.lng})">👁️ Xem Street View tại vị trí này</button></div>
+  `).openOn(map);
 }
 
 async function getGeo(slug){
   if(geoCache[slug]) return geoCache[slug];
   const res=await fetch(`assets/${slug}.geojson`);
-  if(!res.ok) throw new Error('missing geojson');
+  if(!res.ok) throw new Error('geojson not found: '+slug);
   const gj=await res.json(); geoCache[slug]=gj; return gj;
 }
 
-// ============= TOOLS =============
-document.getElementById('btnClear').onclick=()=>{ if(wardLayer){map.removeLayer(wardLayer);wardLayer=null;} };
+/* ====== STREET VIEW (EMBED) ====== */
+window.openSV=(lat,lng)=>{
+  // dùng Embed API -> không bị "refused to connect"
+  const src=`https://www.google.com/maps/embed/v1/streetview?key=AIzaSyARhMzsywQPyQbrbgS6aFVb5sg7eSV34oA&location=${lat},${lng}&heading=0&pitch=0&fov=80`;
+  const html=`<iframe class="popup-sv" src="${src}" allowfullscreen loading="lazy"></iframe>`;
+  L.popup().setLatLng([lat,lng]).setContent(html).openOn(map);
+};
+
+/* ====== MEASURE (Leaflet.Draw) ====== */
+const draw = new L.Control.Draw({
+  draw:{
+    marker:false,circle:false,rectangle:false,circlemarker:false,
+    polyline:{shapeOptions:{color:'#2962ff',weight:3}},
+    polygon:{allowIntersection:false,showArea:true,shapeOptions:{color:'#ff1744',weight:2,fillOpacity:.1}}
+  }, edit:false
+});
+let measureOn=false;
+document.getElementById('btnMeasure').onclick=()=>{
+  measureOn=!measureOn;
+  if(measureOn) map.addControl(draw); else map.removeControl(draw);
+};
+map.on(L.Draw.Event.CREATED, function (e) {
+  const layer=e.layer; layer.addTo(map);
+  if(e.layerType==='polyline'){
+    const latlngs=layer.getLatLngs().map(p=>[p.lng,p.lat]);
+    let len=0; for(let i=1;i<latlngs.length;i++) len+=turf.distance(latlngs[i-1],latlngs[i])*1000;
+    layer.bindPopup(`📏 ${len.toFixed(1)} m`).openPopup();
+  } else if(e.layerType==='polygon'){
+    const coords=[layer.getLatLngs()[0].map(p=>[p.lng,p.lat])];
+    const area=turf.area(turf.polygon(coords));
+    layer.bindPopup(`⬛ ${area.toFixed(1)} m²`).openPopup();
+  }
+});
+
+/* ====== COMPASS ====== */
+const compass=document.getElementById('compass'), needle=document.getElementById('needle');
+let compassOn=false;
+document.getElementById('btnCompass').onclick=()=>{
+  compassOn=!compassOn;
+  compass.style.display=compassOn?'block':'none';
+};
+if(window.DeviceOrientationEvent){
+  window.addEventListener('deviceorientation',e=>{
+    if(!compassOn) return;
+    let deg = e.webkitCompassHeading || (360 - e.alpha); // iOS vs Android
+    if(isFinite(deg)) needle.setAttribute('transform',`rotate(${deg} 50 50)`);
+  });
+}
+
+/* ====== GPS & CLEAR ====== */
 document.getElementById('btnGPS').onclick=()=>{
   map.locate({setView:true,maxZoom:17});
   map.once('locationfound',e=>goto(e.latlng.lat,e.latlng.lng,true));
 };
-document.getElementById('btnEye').onclick=()=>{
-  if(!placeMarker){alert('Chưa có vị trí. Tìm địa chỉ/toạ độ trước.');return;}
-  const {lat,lng}=placeMarker.getLatLng(); openSV(lat,lng);
+document.getElementById('btnClear').onclick=()=>{
+  if(wardLayer){map.removeLayer(wardLayer);wardLayer=null;}
 };
 
-// street view (chỉ hiện khi bấm 👁️)
-window.openSV=(lat,lng)=>{
-  const html=`<iframe style="width:340px;max-width:86vw;height:200px;border:0;border-radius:8px"
-      src="https://www.google.com/maps?q=&layer=c&cbll=${lat},${lng}&cbp=11,0,0,0,0&z=18" allowfullscreen></iframe>`;
-  L.popup().setLatLng([lat,lng]).setContent(html).openOn(map);
+/* ====== TSBĐ / TSSS ====== */
+function smallLabelHTML(text,color='#111'){return `<div style="font-size:11px;color:${color};margin-top:2px">${text}</div>`}
+
+const tsbdInfo=document.getElementById('tsbdInfo');
+document.getElementById('tsbdPin').onclick=()=>{
+  const lat=parseFloat(document.getElementById('tsbdLat').value);
+  const lng=parseFloat(document.getElementById('tsbdLng').value);
+  if(!isFinite(lat)||!isFinite(lng)){alert('Nhập Lat/Lng hợp lệ');return;}
+  if(tsbdMarker) map.removeLayer(tsbdMarker);
+  tsbdMarker=L.marker([lat,lng],{title:'TSBĐ'}).addTo(map);
+  tsbdMarker.bindPopup(`<b>TSBĐ</b>${smallLabelHTML('Lat: '+lat+', Lng: '+lng)}<div style="margin-top:6px"><button onclick="openSV(${lat},${lng})">👁️ Street View</button></div>`).openPopup();
+  map.setView([lat,lng],17);
+  // Reverse admin label (nếu có geojson)
+  tsbdInfo.textContent=`TSBĐ tại ${lat.toFixed(6)}, ${lng.toFixed(6)}`;
 };
+
+document.getElementById('tsbdSV').onclick=()=>{
+  if(!tsbdMarker){alert('Chưa có TSBĐ');return;}
+  const ll=tsbdMarker.getLatLng(); openSV(ll.lat,ll.lng);
+};
+
+document.getElementById('tsssAdd').onclick=()=>{
+  const lat=parseFloat(document.getElementById('tsssLat').value);
+  const lng=parseFloat(document.getElementById('tsssLng').value);
+  const name=document.getElementById('tsssAddr').value||'TSSS';
+  const val=document.getElementById('tsssVal').value||'';
+  if(!isFinite(lat)||!isFinite(lng)){alert('Nhập Lat/Lng hợp lệ');return;}
+  const mk=L.marker([lat,lng],{title:name,icon:new L.DivIcon({
+    className:'',html:`<div style="width:28px;height:28px;border-radius:50%;background:#0ea5e9;border:2px solid #fff;box-shadow:0 1px 6px rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700">TS</div>`,
+    iconSize:[28,28],iconAnchor:[14,14]
+  })}).addTo(map);
+  mk.bindPopup(`<b>${name}</b>${smallLabelHTML('Lat: '+lat+', Lng: '+lng)}${val?smallLabelHTML('Giá: '+val+' tỷ','#0a6'):''}<div style="margin-top:6px"><button onclick="openSV(${lat},${lng})">👁️ Street View</button></div>`);
+  tsssMarkers.push({marker:mk,name,lat,lng,val});
+
+  // cập nhật danh sách + khoảng cách tới TSBĐ nếu có
+  let html='';
+  tsssMarkers.forEach((it,i)=>{
+    let dist='—';
+    if(tsbdMarker){
+      const a=tsbdMarker.getLatLng(); const d=map.distance(a,[it.lat,it.lng]);
+      dist=`${d.toFixed(1)} m`;
+    }
+    html+=`• ${i+1}. ${it.name} — ${it.lat.toFixed(6)}, ${it.lng.toFixed(6)} — Giá: ${it.val||'—'} — Khoảng cách: ${dist}<br/>`;
+  });
+  document.getElementById('tsssList').innerHTML=html||'Chưa có mục so sánh nào.';
+};
+document.getElementById('tsssClear').onclick=()=>{
+  tsssMarkers.forEach(m=>map.removeLayer(m.marker)); tsssMarkers.length=0;
+  document.getElementById('tsssList').textContent='Đã xóa TSSS.';
+};
+
+/* ====== EXPORT CSV / XLSX ====== */
+function collectRows(){
+  const rows=[];
+  if(tsbdMarker){
+    const a=tsbdMarker.getLatLng();
+    rows.push({Loai:'TSBĐ', Ten:document.getElementById('tsbdAddr').value||'TSBĐ', Lat:a.lat, Lng:a.lng, Gia:'', KhoangCach:0, QuanHuyen:'', Tinh:''});
+  }
+  tsssMarkers.forEach(it=>{
+    let kc=0;
+    if(tsbdMarker) kc=map.distance(tsbdMarker.getLatLng(),[it.lat,it.lng]);
+    rows.push({Loai:'TSSS', Ten:it.name, Lat:it.lat, Lng:it.lng, Gia:it.val, KhoangCach:kc.toFixed(1), QuanHuyen:'', Tinh:''});
+  });
+  return rows;
+}
+document.getElementById('btnCSV').onclick=()=>{
+  const rows=collectRows();
+  const header='Loai,Ten,Lat,Lng,Gia,KhoangCach,QuanHuyen,Tinh\n';
+  const body=rows.map(r=>[r.Loai,r.Ten,r.Lat,r.Lng,r.Gia,r.KhoangCach,r.QuanHuyen,r.Tinh].join(',')).join('\n');
+  download('tsss.csv', header+body);
+};
+document.getElementById('btnXLSX').onclick=()=>{
+  const rows=collectRows();
+  const wb=XLSX.utils.book_new();
+  const ws=XLSX.utils.json_to_sheet(rows);
+  XLSX.utils.book_append_sheet(wb,ws,'TS');
+  XLSX.writeFile(wb,'tsss.xlsx');
+};
+function download(name,content){
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([content],{type:'text/csv'}));
+  a.download=name;a.click();URL.revokeObjectURL(a.href);
+}
+
+/* ====== SCREENSHOT (simple) ====== */
+function screenshot(mime='image/png'){
+  html2canvas(map.getContainer(),{useCORS:true}).then(cv=>{
+    const a=document.createElement('a'); a.href=cv.toDataURL(mime); a.download=mime==='image/png'?'map.png':'map.jpg'; a.click();
+  });
+}
+// html2canvas CDN
+(function(){var s=document.createElement('script');s.src='https://unpkg.com/html2canvas@1.4.1/dist/html2canvas.min.js';document.head.appendChild(s);})();
+document.getElementById('shotPNG').onclick=()=>screenshot('image/png');
+document.getElementById('shotJPG').onclick=()=>screenshot('image/jpeg');
 </script>
 </body>
 </html>
