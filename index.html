@@ -1,326 +1,772 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>HCM WebGIS v14.2 — Admin + Measure + Compass + TSBĐ/TSSS + Export</title>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>HCM WebGIS v14.2 FULL CLEAN</title>
 
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <!-- Leaflet CSS + JS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-<link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css"/>
-<script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
+  <!-- Leaflet Draw -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css"/>
+  <script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
 
-<link rel="stylesheet" href="https://unpkg.com/leaflet.locatecontrol/dist/L.Control.Locate.min.css"/>
-<script src="https://unpkg.com/leaflet.locatecontrol/dist/L.Control.Locate.min.js"></script>
+  <!-- Leaflet Locate -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.locatecontrol/dist/L.Control.Locate.min.css"/>
+  <script src="https://unpkg.com/leaflet.locatecontrol/dist/L.Control.Locate.min.js"></script>
 
-<script src="https://unpkg.com/@turf/turf@6.5.0/turf.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.20.0/dist/xlsx.full.min.js"></script>
-<script src="https://unpkg.com/leaflet-simple-map-screenshoter"></script>
+  <!-- Turf, XLSX, Screenshot -->
+  <script src="https://unpkg.com/@turf/turf@6.5.0/turf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.20.0/dist/xlsx.full.min.js"></script>
+  <script src="https://unpkg.com/leaflet-simple-map-screenshoter"></script>
 
-<!-- Google Places (giữ key của anh) -->
-<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyARhMzsywQPyQbrbgS6aFVb5sg7eSV34oA&libraries=places,geometry"></script>
+  <!-- Google Maps API (Places & geometry) -->
+  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyARhMzsywQPyQbrbgS6aFVb5sg7eSV34oA&libraries=places,geometry"></script>
 
-<style>
-:root{--pri:#00BFFF;--gold:#FFD700}
-*{box-sizing:border-box}
-html,body,#map{height:100%;margin:0;font-family:system-ui,Segoe UI,Roboto,Arial}
-#map{position:absolute;inset:0}
-
-/* Search bar */
-#searchWrap{position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:1400;width:860px;max-width:94vw}
-#search{width:100%;padding:12px 14px;border:1px solid #cfd4dc;border-radius:14px;box-shadow:0 2px 8px rgba(0,0,0,.15)}
-
-/* tools */
-#tools{position:absolute;right:10px;top:72px;z-index:1200;display:flex;flex-direction:column;gap:10px}
-.toolbtn{background:#fff;border:1px solid #ddd;border-radius:50%;width:48px;height:48px;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.15);font-size:22px}
-#btnClear{position:absolute;right:10px;top:240px;z-index:1200;background:#fff;border:1px solid #ddd;border-radius:12px;padding:8px 12px;box-shadow:0 2px 6px rgba(0,0,0,.15);cursor:pointer}
-
-/* measure menu */
-#measureMenu{position:absolute;right:70px;top:122px;background:#fff;border:1px solid #ddd;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.18);display:none;z-index:1300}
-#measureMenu button{display:block;width:240px;padding:10px 14px;border:none;background:#fff;text-align:left;cursor:pointer;font-size:14px}
-#measureMenu button:hover{background:#f1f5f9}
-
-/* sidebar */
-#sidebarToggle{position:absolute;left:10px;top:120px;z-index:1200;background:#fff;border:1px solid #ddd;border-radius:12px;padding:8px 12px;box-shadow:0 2px 6px rgba(0,0,0,.15);cursor:pointer}
-#sidebar{position:fixed;left:0;top:0;height:100%;width:380px;background:#fff;box-shadow:4px 0 20px rgba(0,0,0,.2);transform:translateX(-400px);transition:transform .28s ease;z-index:1600;display:flex;flex-direction:column}
-#sidebar.open{transform:translateX(0)}
-#sbHead{background:var(--pri);color:#fff;padding:14px 16px;font-weight:700;display:flex;align-items:center;justify-content:space-between}
-#sidebarClose{border:none;background:transparent;color:#fff;font-size:22px;cursor:pointer}
-#sbBody{padding:12px 12px 90px;overflow:auto}
-.section{border:1px solid #e5e7eb;border-radius:12px;padding:10px 10px 6px;margin-bottom:10px}
-.section h4{margin:0 0 8px;font-size:14px}
-.form-row{display:flex;gap:8px;margin-bottom:8px}
-.form-row input,.form-row select,.form-row textarea{flex:1;padding:9px;border:1px solid #cfd4dc;border-radius:10px}
-.sm{font-size:12px;color:#6b7280}
-
-/* markers */
-.pin{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#003;font-weight:700;border:3px solid #004}
-.pin.tsbd{background:var(--gold);border-color:#a06f00}
-.pin.tsss{background:var(--pri);border-color:#0a4f7a;color:#fff}
-
-/* compass overlay transparent */
-#compassOverlay{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:240px;height:240px;pointer-events:none;display:none;z-index:1300}
-#compassCanvas{width:100%;height:100%}
-
-/* footer coords */
-.coords{position:absolute;left:10px;bottom:6px;background:rgba(255,255,255,.9);padding:4px 8px;border-radius:8px;font:12px monospace;z-index:1000}
-
-@media(max-width:768px){
-  #searchWrap{width:94vw}
-  #sidebar{width:92vw;transform:translateX(-100vw)}
-  #compassOverlay{width:210px;height:210px}
-}
-</style>
+  <style>
+    :root { --pri: #00BFFF; --gold: #FFD700; }
+    * { box-sizing: border-box; }
+    html, body, #map { height: 100%; margin: 0; font-family: system-ui,Segoe UI,Roboto,Arial; }
+    #map { position: absolute; inset: 0; }
+    #searchWrap {
+      position: absolute;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 1400;
+      width: 860px;
+      max-width: 94vw;
+    }
+    #search {
+      width: 100%;
+      padding: 12px 14px;
+      border: 1px solid #cfd4dc;
+      border-radius: 14px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    }
+    #tools {
+      position: absolute;
+      right: 10px;
+      top: 72px;
+      z-index: 1200;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .toolbtn {
+      background: #fff;
+      border: 1px solid #ddd;
+      border-radius: 50%;
+      width: 48px;
+      height: 48px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+      font-size: 22px;
+    }
+    #btnClear {
+      position: absolute;
+      right: 10px;
+      top: 240px;
+      z-index: 1200;
+      background: #fff;
+      border: 1px solid #ddd;
+      border-radius: 12px;
+      padding: 8px 12px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+      cursor: pointer;
+    }
+    #measureMenu {
+      position: absolute;
+      right: 70px;
+      top: 122px;
+      background: #fff;
+      border: 1px solid #ddd;
+      border-radius: 12px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.18);
+      display: none;
+      z-index: 1300;
+    }
+    #measureMenu button {
+      display: block;
+      width: 240px;
+      padding: 10px 14px;
+      border: none;
+      background: #fff;
+      text-align: left;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    #measureMenu button:hover {
+      background: #f1f5f9;
+    }
+    #sidebarToggle {
+      position: absolute;
+      left: 10px;
+      top: 120px;
+      z-index: 1200;
+      background: #fff;
+      border: 1px solid #ddd;
+      border-radius: 12px;
+      padding: 8px 12px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+      cursor: pointer;
+    }
+    #sidebar {
+      position: fixed;
+      left: 0;
+      top: 0;
+      height: 100%;
+      width: 380px;
+      background: #fff;
+      box-shadow: 4px 0 20px rgba(0,0,0,0.2);
+      transform: translateX(-400px);
+      transition: transform 0.28s ease;
+      z-index: 1600;
+      display: flex;
+      flex-direction: column;
+    }
+    #sidebar.open {
+      transform: translateX(0);
+    }
+    #sbHead {
+      background: var(--pri);
+      color: #fff;
+      padding: 14px 16px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    #sidebarClose {
+      border: none;
+      background: transparent;
+      color: #fff;
+      font-size: 22px;
+      cursor: pointer;
+    }
+    #sbBody {
+      padding: 12px 12px 90px;
+      overflow: auto;
+    }
+    .section {
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      padding: 10px 10px 6px;
+      margin-bottom: 10px;
+    }
+    .section h4 {
+      margin: 0 0 8px;
+      font-size: 14px;
+    }
+    .form-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+    .form-row input, .form-row select, .form-row textarea {
+      flex: 1;
+      padding: 9px;
+      border: 1px solid #cfd4dc;
+      border-radius: 10px;
+    }
+    .sm {
+      font-size: 12px;
+      color: #6b7280;
+    }
+    .pin {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #003;
+      font-weight: 700;
+      border: 3px solid #004;
+    }
+    .pin.tsbd {
+      background: var(--gold);
+      border-color: #a06f00;
+    }
+    .pin.tsss {
+      background: var(--pri);
+      border-color: #0a4f7a;
+      color: #fff;
+    }
+    #compassOverlay {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      width: 240px;
+      height: 240px;
+      pointer-events: none;
+      display: none;
+      z-index: 1300;
+    }
+    #compassCanvas {
+      width: 100%;
+      height: 100%;
+    }
+    .coords {
+      position: absolute;
+      left: 10px;
+      bottom: 6px;
+      background: rgba(255,255,255,0.9);
+      padding: 4px 8px;
+      border-radius: 8px;
+      font: 12px monospace;
+      z-index: 1000;
+    }
+    @media (max-width: 768px) {
+      #searchWrap { width: 94vw; }
+      #sidebar { width: 92vw; transform: translateX(-100vw); }
+      #compassOverlay { width: 210px; height: 210px; }
+    }
+  </style>
 </head>
 <body>
 
-<div id="searchWrap"><input id="search" placeholder="🔍 Địa chỉ / Phường-Xã / Tên cũ / Tọa độ (10.79,106.66)"></div>
-<div id="map"></div>
+  <div id="searchWrap">
+    <input id="search" placeholder="🔍 Địa chỉ / Phường-Xã / Tên cũ / Tọa độ (10.79,106.66)"/>
+  </div>
+  <div id="map"></div>
 
-<div id="tools">
-  <button id="btnCompass" class="toolbtn" title="Bật/Tắt la bàn">🧭</button>
-  <button id="btnMeasure" class="toolbtn" title="Đo (khoảng cách/diện tích)">📏</button>
-  <button id="btnGPS" class="toolbtn" title="Định vị">📍</button>
-  <button id="btnShot" class="toolbtn" title="Chụp JPG">📸</button>
-</div>
-<div id="measureMenu">
-  <button id="mDist">📍📍 Đo khoảng cách</button>
-  <button id="mArea">⬛ Đo diện tích</button>
-  <button id="mFinish">🛑 Hoàn tất đo</button>
-</div>
-<button id="btnClear">🧹 Xóa tô màu</button>
+  <div id="tools">
+    <button id="btnCompass" class="toolbtn" title="Bật/Tắt la bàn">🧭</button>
+    <button id="btnMeasure" class="toolbtn" title="Đo (khoảng cách/diện tích)">📏</button>
+    <button id="btnGPS" class="toolbtn" title="Định vị">📍</button>
+    <button id="btnShot" class="toolbtn" title="Chụp JPG">📸</button>
+  </div>
 
-<button id="sidebarToggle">📋 TSBĐ / TSSS</button>
-<div id="sidebar">
-  <div id="sbHead"><span>📋 TSBĐ / TSSS</span><button id="sidebarClose">×</button></div>
-  <div id="sbBody">
-    <div class="section">
-      <h4>TSBĐ</h4>
-      <div class="form-row"><input id="tsbdTen" placeholder="Tên/Địa chỉ TSBĐ"><input id="tsbdGia" placeholder="Giá (tỷ)" type="number"></div>
-      <div class="form-row"><input id="tsbdLat" placeholder="Lat"><input id="tsbdLng" placeholder="Lng"></div>
-      <div class="form-row"><button id="tsbdPin">📍 Đặt điểm</button><button id="tsbdStreet">👁️ Street View</button></div>
-      <div class="sm">TSBĐ hiển thị vòng tròn <b>vàng</b>.</div>
+  <div id="measureMenu">
+    <button id="mDist">📍📍 Đo khoảng cách</button>
+    <button id="mArea">⬛ Đo diện tích</button>
+    <button id="mFinish">🛑 Hoàn tất đo</button>
+  </div>
+
+  <button id="btnClear">🧹 Xóa tô màu</button>
+
+  <button id="sidebarToggle">📋 TSBĐ / TSSS</button>
+  <div id="sidebar">
+    <div id="sbHead">
+      <span>📋 TSBĐ / TSSS</span>
+      <button id="sidebarClose">×</button>
     </div>
+    <div id="sbBody">
+      <div class="section">
+        <h4>TSBĐ</h4>
+        <div class="form-row">
+          <input id="tsbdTen" placeholder="Tên/Địa chỉ TSBĐ"/>
+          <input id="tsbdGia" placeholder="Giá (tỷ)" type="number"/>
+        </div>
+        <div class="form-row">
+          <input id="tsbdLat" placeholder="Lat"/>
+          <input id="tsbdLng" placeholder="Lng"/>
+        </div>
+        <div class="form-row">
+          <button id="tsbdPin">📍 Đặt điểm</button>
+          <button id="tsbdStreet">👁️ Street View</button>
+        </div>
+        <div class="sm">TSBĐ hiển thị vòng tròn <b>vàng</b>.</div>
+      </div>
 
-    <div class="section">
-      <h4>TSSS</h4>
-      <div class="form-row"><input id="tsssTen" placeholder="Tên/Địa chỉ so sánh"><input id="tsssGia" placeholder="Giá (tỷ)" type="number"></div>
-      <div class="form-row"><input id="tsssLat" placeholder="Lat"><input id="tsssLng" placeholder="Lng"></div>
-      <div class="form-row"><button id="tsssAdd">➕ Thêm TSSS</button><button id="tsssClear">🗑️ Xóa TSSS</button></div>
-      <div id="tsssList" class="sm">Chưa có TSSS.</div>
-    </div>
+      <div class="section">
+        <h4>TSSS</h4>
+        <div class="form-row">
+          <input id="tsssTen" placeholder="Tên/Địa chỉ so sánh"/>
+          <input id="tsssGia" placeholder="Giá (tỷ)" type="number"/>
+        </div>
+        <div class="form-row">
+          <input id="tsssLat" placeholder="Lat"/>
+          <input id="tsssLng" placeholder="Lng"/>
+        </div>
+        <div class="form-row">
+          <button id="tsssAdd">➕ Thêm TSSS</button>
+          <button id="tsssClear">🗑️ Xóa TSSS</button>
+        </div>
+        <div id="tsssList" class="sm">Chưa có TSSS.</div>
+      </div>
 
-    <div class="section">
-      <h4>Lưu / Tải dữ liệu</h4>
-      <div class="form-row"><button id="btnExportCSV">📄 Xuất CSV</button><button id="btnExportXLSX">📘 Xuất Excel (.xlsx)</button></div>
-      <div class="form-row"><button id="btnExportKML">🗺️ Tạo My Map (KML)</button><button id="btnOpenMyMaps">📂 Mở My Maps</button></div>
-      <div class="sm">File xuất có cột <b>Quận/Huyện</b>. KML để import vào Google My Maps.</div>
+      <div class="section">
+        <h4>Lưu / Tải dữ liệu</h4>
+        <div class="form-row">
+          <button id="btnExportCSV">📄 Xuất CSV</button>
+          <button id="btnExportXLSX">📘 Xuất Excel (.xlsx)</button>
+        </div>
+        <div class="form-row">
+          <button id="btnExportKML">🗺️ Tạo My Map (KML)</button>
+          <button id="btnOpenMyMaps">📂 Mở My Maps</button>
+        </div>
+        <div class="sm">File xuất có cột <b>Quận/Huyện</b>. KML để import vào Google My Maps.</div>
+      </div>
     </div>
   </div>
-</div>
 
-<div id="compassOverlay"><canvas id="compassCanvas" width="240" height="240"></canvas></div>
-<div id="coords" class="coords">Lat: --, Lng: --</div>
+  <div id="compassOverlay">
+    <canvas id="compassCanvas" width="240" height="240"></canvas>
+  </div>
+  <div id="coords" class="coords">Lat: --, Lng: --</div>
 
-<script>
-/* ===== MAP BASE ===== */
-const map=L.map('map',{center:[10.775,106.7],zoom:12});
-const osm=L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap'}).addTo(map);
-const gSt=L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}');
-const gHy=L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}');
-L.control.layers({"🗺️ OSM":osm,"🌍 Google Street":gSt,"🛰️ Google Hybrid":gHy}).addTo(map);
-map.on('mousemove',e=>coords.textContent=`Lat: ${e.latlng.lat.toFixed(5)}, Lng: ${e.latlng.lng.toFixed(5)}`);
+  <script>
+    // MAP base
+    const map = L.map('map', { center: [10.775, 106.7], zoom: 12 });
+    const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap'
+    }).addTo(map);
+    const gSt = L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}');
+    const gHy = L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}');
+    L.control.layers({ "🗺️ OSM": osm, "🌍 Google Street": gSt, "🛰️ Google Hybrid": gHy }).addTo(map);
+    const coordsEl = document.getElementById('coords');
+    map.on('mousemove', e => {
+      coordsEl.textContent = `Lat: ${e.latlng.lat.toFixed(5)}, Lng: ${e.latlng.lng.toFixed(5)}`;
+    });
 
-/* ===== Sidebar ===== */
-const sidebar=document.getElementById('sidebar');
-document.getElementById('sidebarToggle').onclick=()=>sidebar.classList.add('open');
-document.getElementById('sidebarClose').onclick=()=>sidebar.classList.remove('open');
+    // Sidebar toggle
+    const sidebar = document.getElementById('sidebar');
+    document.getElementById('sidebarToggle').onclick = () => sidebar.classList.add('open');
+    document.getElementById('sidebarClose').onclick = () => sidebar.classList.remove('open');
 
-/* ===== GeoJSON Hành chính (đường dẫn đã fix ./assets) ===== */
-let wardLayer=null, wardFeatures=[], coloredLayers=[];
-fetch('./assets/TPHCM.geojson')
-.then(r=>r.json())
-.then(g=>{
-  wardLayer=L.geoJSON(g,{
-    style:{color:'#555',weight:1,fillOpacity:.1},
-    onEachFeature:(f,l)=>{
-      const p=f.properties||{}, ten=p.ten_xa||'', qh=p.quan_huyen||'';
-      const sn=(p.sap_nhap&&p.sap_nhap!=='0')?p.sap_nhap:'—';
-      const dt=(p.dtich_km2!=null)?`${p.dtich_km2} km²`:'—';
-      const ds=(p.dan_so!=null)?`${Number(p.dan_so).toLocaleString('vi-VN')} người`:'—';
-      l.bindPopup(`<b>${ten}</b><br>${qh}<br>Trước sáp nhập: ${sn}<br>Diện tích: ${dt}<br>Dân số: ${ds}`);
-      l.on('click',()=>{const c=randColor(); l.setStyle({fillColor:c,fillOpacity:.45}); if(!coloredLayers.includes(l)) coloredLayers.push(l); l.openPopup();});
-      wardFeatures.push(f);
+    // GeoJSON hành chính từ raw GitHub
+    let wardLayer = null;
+    let wardFeatures = [];
+    let coloredLayers = [];
+    fetch('https://raw.githubusercontent.com/Minhcd81/HCM/main/assets/TPHCM.geojson')
+      .then(r => r.json())
+      .then(geo => {
+        wardLayer = L.geoJSON(geo, {
+          style: { color: '#555', weight: 1, fillOpacity: 0.1 },
+          onEachFeature: (f, layer) => {
+            const p = f.properties || {};
+            const ten = p.ten_xa || '';
+            const qh = p.quan_huyen || '';
+            const sn = (p.sap_nhap && p.sap_nhap !== '0') ? p.sap_nhap : '—';
+            const dt = (p.dtich_km2 != null) ? `${p.dtich_km2} km²` : '—';
+            const ds = (p.dan_so != null) ? `${Number(p.dan_so).toLocaleString('vi-VN')} người` : '—';
+            const popup = `<b>${ten}</b><br>${qh}<br>Trước sáp nhập: ${sn}<br>Diện tích: ${dt}<br>Dân số: ${ds}`;
+            layer.bindPopup(popup);
+            layer.on('click', () => {
+              const c = randColor();
+              layer.setStyle({ fillColor: c, fillOpacity: 0.45 });
+              if (!coloredLayers.includes(layer)) coloredLayers.push(layer);
+              layer.openPopup();
+            });
+            wardFeatures.push(f);
+          }
+        }).addTo(map);
+      })
+      .catch(err => {
+        console.error('Load GeoJSON lỗi:', err);
+        alert('Không tải được GeoJSON. Kiểm tra đường dẫn.');
+      });
+
+    document.getElementById('btnClear').onclick = () => {
+      coloredLayers.forEach(l => l.setStyle({ fillColor: null, fillOpacity: 0.1 }));
+      coloredLayers = [];
+    };
+    function randColor() {
+      const arr = ['#FFD700', '#FFA500', '#FF4500', '#8A2BE2', '#1E90FF', '#00CED1'];
+      return arr[(Math.random() * arr.length) | 0];
     }
-  }).addTo(map);
-})
-.catch(()=>alert('Không tải được ./assets/TPHCM.geojson — kiểm tra thư mục assets/'));
 
-document.getElementById('btnClear').onclick=()=>{coloredLayers.forEach(l=>l.setStyle({fillColor:null,fillOpacity:.1})); coloredLayers=[];}
-function randColor(){const a=['#FFD700','#FFA500','#FF4500','#8A2BE2','#1E90FF','#00CED1'];return a[(Math.random()*a.length)|0];}
-
-/* Tìm Quận/Huyện theo tọa độ */
-function findQuanHuyen(lat,lng){
-  if(!wardFeatures.length) return '';
-  const pt=turf.point([lng,lat]);
-  for(const f of wardFeatures){ if(turf.booleanPointInPolygon(pt,f)) return (f.properties?.quan_huyen||'').toString().trim(); }
-  return '';
-}
-
-/* ===== Search (Google Places) + Marker popup có Street View ===== */
-const search=document.getElementById('search');
-let lastTemp=null;
-try{
-  const ac=new google.maps.places.Autocomplete(search,{types:['geocode'],componentRestrictions:{country:'vn'}});
-  ac.addListener('place_changed',()=>{
-    const pl=ac.getPlace();
-    if(pl && pl.geometry){
-      const lat=pl.geometry.location.lat(), lng=pl.geometry.location.lng();
-      map.setView([lat,lng],17);
-      if(lastTemp) map.removeLayer(lastTemp);
-      lastTemp=L.marker([lat,lng]).addTo(map);
-      const html=`<b>${pl.formatted_address}</b><br>
-        <button id="svBtn" style="margin-top:6px">👁️ Xem Street View tại vị trí này</button>`;
-      lastTemp.bindPopup(html).openPopup();
-      lastTemp.on('popupopen',()=>{const b=document.getElementById('svBtn'); if(b){b.onclick=()=>window.open(\`https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=\${lat},\${lng}\`,'_blank');}});
+    function findQuanHuyen(lat, lng) {
+      if (!wardFeatures.length) return '';
+      const pt = turf.point([lng, lat]);
+      for (const f of wardFeatures) {
+        if (turf.booleanPointInPolygon(pt, f)) {
+          return (f.properties?.quan_huyen || '').toString().trim();
+        }
+      }
+      return '';
     }
-  });
-}catch(e){console.warn('Google Places không khả dụng:',e);}
 
-/* ===== Measure (Leaflet.Draw) ===== */
-const drawnItems=new L.FeatureGroup().addTo(map);
-let activeDraw=null;
-function stopMeasure(){if(activeDraw){activeDraw.disable();activeDraw=null;}}
-document.getElementById('btnMeasure').onclick=()=>{const m=document.getElementById('measureMenu');m.style.display=m.style.display==='block'?'none':'block';};
-document.getElementById('mDist').onclick=()=>{stopMeasure();activeDraw=new L.Draw.Polyline(map,{shapeOptions:{color:varPri()}});activeDraw.enable();document.getElementById('measureMenu').style.display='none';};
-document.getElementById('mArea').onclick=()=>{stopMeasure();activeDraw=new L.Draw.Polygon(map,{shapeOptions:{color:varPri(),fillOpacity:.2}});activeDraw.enable();document.getElementById('measureMenu').style.display='none';};
-document.getElementById('mFinish').onclick=()=>{stopMeasure();document.getElementById('measureMenu').style.display='none';};
-map.on(L.Draw.Event.CREATED,e=>{
-  const layer=e.layer;drawnItems.addLayer(layer);
-  if(e.layerType==='polyline'){
-    const coords=layer.getLatLngs().map(ll=>[ll.lng,ll.lat]);let len=0;for(let i=1;i<coords.length;i++){len+=turf.distance(coords[i-1],coords[i],{units:'kilometers'});}
-    layer.bindPopup('Chiều dài: '+(len*1000).toFixed(1)+' m').openPopup();
-  }else if(e.layerType==='polygon'){
-    const ring=[layer.getLatLngs()[0].map(ll=>[ll.lng,ll.lat])];
-    const poly=turf.polygon([ring[0]]);const area=turf.area(poly);
-    layer.bindPopup('Diện tích: '+area.toFixed(0)+' m²').openPopup();
-  }
-});
-function varPri(){return getComputedStyle(document.documentElement).getPropertyValue('--pri')||'#00BFFF';}
+    // Search + Google Places autocomplete
+    const search = document.getElementById('search');
+    let lastTemp = null;
+    try {
+      const ac = new google.maps.places.Autocomplete(search, {
+        types: ['geocode'],
+        componentRestrictions: { country: 'vn' }
+      });
+      ac.addListener('place_changed', () => {
+        const pl = ac.getPlace();
+        if (pl && pl.geometry) {
+          const lat = pl.geometry.location.lat();
+          const lng = pl.geometry.location.lng();
+          map.setView([lat, lng], 17);
+          if (lastTemp) map.removeLayer(lastTemp);
+          lastTemp = L.marker([lat, lng]).addTo(map);
+          const html = `<b>${pl.formatted_address}</b><br>
+            <button id="svBtn" style="margin-top:6px">👁️ Xem Street View tại vị trí này</button>`;
+          lastTemp.bindPopup(html).openPopup();
+          lastTemp.on('popupopen', () => {
+            const b = document.getElementById('svBtn');
+            if (b) {
+              b.onclick = () => {
+                window.open(`https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${lat},${lng}`, '_blank');
+              };
+            }
+          });
+        }
+      });
+    } catch (e) {
+      console.warn('Google Places unavailable:', e);
+    }
 
-/* ===== Compass overlay (transparent) ===== */
-const compassEl=document.getElementById('compassOverlay');
-const cv=document.getElementById('compassCanvas'), ctx=cv.getContext('2d');
-let compassOn=false, deviceHeading=0;
-function drawCompass(){
-  const R=cv.width/2, C=R; ctx.clearRect(0,0,cv.width,cv.height);
-  ctx.strokeStyle='rgba(0,0,0,.35)'; ctx.lineWidth=1.3;
-  ctx.beginPath(); ctx.arc(C,C,R-6,0,Math.PI*2); ctx.stroke();
-  for(let d=0; d<360; d+=10){
-    const len=(d%30===0)?10:5, a=(d-deviceHeading)*Math.PI/180, r1=R-14, r2=r1-len;
-    ctx.beginPath(); ctx.moveTo(C+Math.cos(a)*r1, C+Math.sin(a)*r1); ctx.lineTo(C+Math.cos(a)*r2, C+Math.sin(a)*r2); ctx.stroke();
-  }
-  labelAt('B',0); labelAt('Đ',90); labelAt('N',180); labelAt('T',270);
-  function labelAt(t,deg){const a=(deg-deviceHeading)*Math.PI/180, r=R-34; ctx.fillStyle='#111'; ctx.font='700 14px Segoe UI'; ctx.textAlign='center'; ctx.fillText(t, C+Math.cos(a)*r, C+Math.sin(a)*r+5);}
-  ctx.save(); ctx.translate(C,C); ctx.rotate((-deviceHeading)*Math.PI/180);
-  ctx.fillStyle='#d00'; ctx.beginPath(); ctx.moveTo(0,-(R-34)); ctx.lineTo(7,0); ctx.lineTo(-7,0); ctx.closePath(); ctx.fill(); ctx.restore();
-}
-document.getElementById('btnCompass').onclick=()=>{compassOn=!compassOn; compassEl.style.display=compassOn?'block':'none'; if(compassOn) drawCompass();};
-window.addEventListener('deviceorientation',e=>{ if(typeof e.alpha==='number'){deviceHeading=360-e.alpha; if(compassOn) drawCompass();} });
+    // Measure (draw)
+    const drawnItems = new L.FeatureGroup().addTo(map);
+    let activeDraw = null;
+    function stopMeasure() {
+      if (activeDraw) {
+        activeDraw.disable();
+        activeDraw = null;
+      }
+    }
+    document.getElementById('btnMeasure').onclick = () => {
+      const m = document.getElementById('measureMenu');
+      m.style.display = (m.style.display === 'block') ? 'none' : 'block';
+    };
+    document.getElementById('mDist').onclick = () => {
+      stopMeasure();
+      activeDraw = new L.Draw.Polyline(map, { shapeOptions: { color: getPrimaryColor() } });
+      activeDraw.enable();
+      document.getElementById('measureMenu').style.display = 'none';
+    };
+    document.getElementById('mArea').onclick = () => {
+      stopMeasure();
+      activeDraw = new L.Draw.Polygon(map, { shapeOptions: { color: getPrimaryColor(), fillOpacity: 0.2 } });
+      activeDraw.enable();
+      document.getElementById('measureMenu').style.display = 'none';
+    };
+    document.getElementById('mFinish').onclick = () => {
+      stopMeasure();
+      document.getElementById('measureMenu').style.display = 'none';
+    };
+    map.on(L.Draw.Event.CREATED, e => {
+      const layer = e.layer;
+      drawnItems.addLayer(layer);
+      if (e.layerType === 'polyline') {
+        const coords = layer.getLatLngs().map(ll => [ll.lng, ll.lat]);
+        let len = 0;
+        for (let i = 1; i < coords.length; i++) {
+          len += turf.distance(coords[i - 1], coords[i], { units: 'kilometers' });
+        }
+        layer.bindPopup('Chiều dài: ' + (len * 1000).toFixed(1) + ' m').openPopup();
+      } else if (e.layerType === 'polygon') {
+        const ring = [layer.getLatLngs()[0].map(ll => [ll.lng, ll.lat])];
+        const poly = turf.polygon([ring[0]]);
+        const area = turf.area(poly);
+        layer.bindPopup('Diện tích: ' + area.toFixed(0) + ' m²').openPopup();
+      }
+    });
+    function getPrimaryColor() {
+      return getComputedStyle(document.documentElement).getPropertyValue('--pri') || '#00BFFF';
+    }
 
-/* ===== GPS ===== */
-const locateCtrl=L.control.locate({strings:{title:"Vị trí của tôi"},showCompass:true,setView:'untilPanOrZoom'});
-document.getElementById('btnGPS').onclick=()=>{ if(!locateCtrl._map) locateCtrl.addTo(map); locateCtrl.start(); };
+    // Compass overlay
+    const compassEl = document.getElementById('compassOverlay');
+    const cv = document.getElementById('compassCanvas');
+    const ctx = cv.getContext('2d');
+    let compassOn = false;
+    let deviceHeading = 0;
+    function drawCompass() {
+      const R = cv.width / 2;
+      const C = R;
+      ctx.clearRect(0, 0, cv.width, cv.height);
+      ctx.strokeStyle = 'rgba(0,0,0,0.35)';
+      ctx.lineWidth = 1.3;
+      ctx.beginPath();
+      ctx.arc(C, C, R - 6, 0, Math.PI * 2);
+      ctx.stroke();
+      for (let d = 0; d < 360; d += 10) {
+        const len = (d % 30 === 0) ? 10 : 5;
+        const a = (d - deviceHeading) * Math.PI / 180;
+        const r1 = R - 14;
+        const r2 = r1 - len;
+        ctx.beginPath();
+        ctx.moveTo(C + Math.cos(a) * r1, C + Math.sin(a) * r1);
+        ctx.lineTo(C + Math.cos(a) * r2, C + Math.sin(a) * r2);
+        ctx.stroke();
+      }
+      labelAt('B', 0);
+      labelAt('Đ', 90);
+      labelAt('N', 180);
+      labelAt('T', 270);
+      function labelAt(t, deg) {
+        const a = (deg - deviceHeading) * Math.PI / 180;
+        const r = R - 34;
+        ctx.fillStyle = '#111';
+        ctx.font = '700 14px Segoe UI';
+        ctx.textAlign = 'center';
+        ctx.fillText(t, C + Math.cos(a) * r, C + Math.sin(a) * r + 5);
+      }
+      ctx.save();
+      ctx.translate(C, C);
+      ctx.rotate((-deviceHeading) * Math.PI / 180);
+      ctx.fillStyle = '#d00';
+      ctx.beginPath();
+      ctx.moveTo(0, -(R - 34));
+      ctx.lineTo(7, 0);
+      ctx.lineTo(-7, 0);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    }
+    document.getElementById('btnCompass').onclick = () => {
+      compassOn = !compassOn;
+      compassEl.style.display = compassOn ? 'block' : 'none';
+      if (compassOn) drawCompass();
+    };
+    window.addEventListener('deviceorientation', e => {
+      if (typeof e.alpha === 'number') {
+        deviceHeading = 360 - e.alpha;
+        if (compassOn) drawCompass();
+      }
+    });
 
-/* ===== Screenshot JPG ===== */
-const screenshoter=new L.simpleMapScreenshoter({ hidden:true, mimeType:'image/jpeg', quality:0.92, domtoimageOptions:{bgcolor:'#ffffff'} }).addTo(map);
-document.getElementById('btnShot').onclick=()=>{ screenshoter.takeScreen('blob').then(b=>{const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download=`HCM_Map_${ts()}.jpg`; a.click();}); };
+    // GPS locate
+    const locateCtrl = L.control.locate({ strings: { title: "Vị trí của tôi" }, showCompass: true, setView: 'untilPanOrZoom' });
+    document.getElementById('btnGPS').onclick = () => {
+      if (!locateCtrl._map) locateCtrl.addTo(map);
+      locateCtrl.start();
+    };
 
-/* ===== TSBĐ / TSSS ===== */
-function iconTSBD(){ return L.divIcon({className:'', html:`<div class="pin tsbd">TSBĐ</div>`, iconSize:[34,34], iconAnchor:[17,17]}); }
-function iconTSSS(){ return L.divIcon({className:'', html:`<div class="pin tsss">TSSS</div>`, iconSize:[34,34], iconAnchor:[17,17]}); }
+    // Screenshot JPG
+    const screenshoter = new L.simpleMapScreenshoter({
+      hidden: true,
+      mimeType: 'image/jpeg',
+      quality: 0.92,
+      domtoimageOptions: { bgcolor: '#ffffff' }
+    }).addTo(map);
+    document.getElementById('btnShot').onclick = () => {
+      screenshoter.takeScreen('blob').then(b => {
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(b);
+        a.download = `HCM_Map_${(new Date()).toISOString().slice(0,19).replace(/[:T]/g, '')}.jpg`;
+        a.click();
+      });
+    };
 
-let tsbdMarker=null; const tsssMarkers=[];
-const tsbdTen=tsbdTenEl(), tsbdGia=tsbdGiaEl(), tsbdLat=tsbdLatEl(), tsbdLng=tsbdLngEl();
-function tsbdTenEl(){return document.getElementById('tsbdTen')} function tsbdGiaEl(){return document.getElementById('tsbdGia')}
-function tsbdLatEl(){return document.getElementById('tsbdLat')} function tsbdLngEl(){return document.getElementById('tsbdLng')}
-const tsssTen=document.getElementById('tsssTen'), tsssGia=document.getElementById('tsssGia'), tsssLat=document.getElementById('tsssLat'), tsssLng=document.getElementById('tsssLng');
+    // TSBĐ / TSSS logic
+    function iconTSBD() {
+      return L.divIcon({
+        className: '',
+        html: `<div class="pin tsbd">TSBĐ</div>`,
+        iconSize: [34, 34],
+        iconAnchor: [17, 17]
+      });
+    }
+    function iconTSSS() {
+      return L.divIcon({
+        className: '',
+        html: `<div class="pin tsss">TSSS</div>`,
+        iconSize: [34, 34],
+        iconAnchor: [17, 17]
+      });
+    }
 
-document.getElementById('tsbdPin').onclick=()=>{
-  const lat=parseFloat(tsbdLat.value), lng=parseFloat(tsbdLng.value);
-  if(!isFinite(lat)||!isFinite(lng)){alert('Nhập Lat/Lng hợp lệ cho TSBĐ');return;}
-  if(tsbdMarker) map.removeLayer(tsbdMarker);
-  tsbdMarker=L.marker([lat,lng],{icon:iconTSBD()}).addTo(map);
-  const qh=findQuanHuyen(lat,lng);
-  tsbdMarker.bindPopup(`<b>${tsbdTen.value||'TSBĐ'}</b><br><small>${qh||'—'}</small>${tsbdGia.value?`<br>Giá: ${tsbdGia.value} tỷ`:''}<br><button id="svTSBD">👁️ Xem Street View</button>`).openPopup();
-  tsbdMarker.on('popupopen',()=>{const b=document.getElementById('svTSBD'); if(b) b.onclick=()=>window.open(\`https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=\${lat},\${lng}\`,'_blank');});
-  map.setView([lat,lng],17);
-};
-document.getElementById('tsbdStreet').onclick=()=>{
-  const lat=parseFloat(tsbdLat.value), lng=parseFloat(tsbdLng.value);
-  if(!isFinite(lat)||!isFinite(lng)){alert('Nhập Lat/Lng hợp lệ cho TSBĐ');return;}
-  window.open(`https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${lat},${lng}`,'_blank');
-};
+    let tsbdMarker = null;
+    const tsssMarkers = [];
+    const tsbdTenEl_ = document.getElementById('tsbdTen');
+    const tsbdGiaEl_ = document.getElementById('tsbdGia');
+    const tsbdLatEl_ = document.getElementById('tsbdLat');
+    const tsbdLngEl_ = document.getElementById('tsbdLng');
+    const tsssTenEl = document.getElementById('tsssTen');
+    const tsssGiaEl = document.getElementById('tsssGia');
+    const tsssLatEl = document.getElementById('tsssLat');
+    const tsssLngEl = document.getElementById('tsssLng');
 
-document.getElementById('tsssAdd').onclick=()=>{
-  const lat=parseFloat(tsssLat.value), lng=parseFloat(tsssLng.value);
-  if(!isFinite(lat)||!isFinite(lng)){alert('Nhập Lat/Lng hợp lệ cho TSSS');return;}
-  const m=L.marker([lat,lng],{icon:iconTSSS()}).addTo(map);
-  m.meta={name:tsssTen.value||'TSSS', price:isFinite(+tsssGia.value)?+tsssGia.value:null};
-  const qh=findQuanHuyen(lat,lng);
-  m.bindPopup(`<b>${m.meta.name}</b><br><small>${qh||'—'}</small>${m.meta.price!=null?`<br>Giá: ${m.meta.price} tỷ`:''}<br><button class="svTSSS">👁️ Street View</button>`);
-  m.on('popupopen',()=>{const b=document.querySelector('.svTSSS'); if(b) b.onclick=()=>window.open(\`https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=\${lat},\${lng}\`,'_blank');});
-  tsssMarkers.push(m); map.setView([lat,lng],17); renderList();
-};
-document.getElementById('tsssClear').onclick=()=>{ tsssMarkers.forEach(m=>map.removeLayer(m)); tsssMarkers.length=0; renderList(); };
-function renderList(){
-  const box=document.getElementById('tsssList');
-  if(tsssMarkers.length===0){ box.textContent='Chưa có TSSS.'; return; }
-  box.innerHTML=tsssMarkers.map(m=>`• ${m.meta?.name||'TSSS'} — ${m.getLatLng().lat.toFixed(5)}, ${m.getLatLng().lng.toFixed(5)} ${m.meta?.price!=null?`— ${m.meta.price} tỷ`:''}`).join('<br>');
-}
+    document.getElementById('tsbdPin').onclick = () => {
+      const lat = parseFloat(tsbdLatEl_.value);
+      const lng = parseFloat(tsbdLngEl_.value);
+      if (!isFinite(lat) || !isFinite(lng)) {
+        alert('Nhập Lat/Lng hợp lệ cho TSBĐ');
+        return;
+      }
+      if (tsbdMarker) map.removeLayer(tsbdMarker);
+      tsbdMarker = L.marker([lat, lng], { icon: iconTSBD() }).addTo(map);
+      const qh = findQuanHuyen(lat, lng);
+      const html = `<b>${tsbdTenEl_.value || 'TSBĐ'}</b><br>
+        <small>${qh || '—'}</small>${tsbdGiaEl_.value ? `<br>Giá: ${tsbdGiaEl_.value} tỷ` : ''}<br>
+        <button id="svTSBD">👁️ Street View</button>`;
+      tsbdMarker.bindPopup(html).openPopup();
+      tsbdMarker.on('popupopen', () => {
+        const b = document.getElementById('svTSBD');
+        if (b) {
+          b.onclick = () => window.open(`https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${lat},${lng}`, '_blank');
+        }
+      });
+      map.setView([lat, lng], 17);
+    };
 
-/* ===== Export CSV/XLSX ===== */
-function ts(){const d=new Date();const p=n=>String(n).padStart(2,'0');return `${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}`;}
-function rowsForExport(){
-  if(!tsbdMarker){alert('Đặt điểm TSBĐ trước khi xuất');return null;}
-  const a=tsbdMarker.getLatLng(), qhA=findQuanHuyen(a.lat,a.lng);
-  const rows=[{Loai:'TSBD',Ten:tsbdTen.value||'TSBĐ',Lat:+a.lat.toFixed(6),Lng:+a.lng.toFixed(6),Quan_Huyen:qhA||'',Gia_ty:isFinite(+tsbdGia.value)?+tsbdGia.value:'',Khoang_cach:'',Ghi_chu:''}];
-  tsssMarkers.forEach(m=>{
-    const b=m.getLatLng(), qhB=findQuanHuyen(b.lat,b.lng);
-    let dist=''; const dkm=turf.distance([a.lng,a.lat],[b.lng,b.lat],{units:'kilometers'}); dist=`${(dkm*1000).toFixed(1)} m`;
-    rows.push({Loai:'TSSS',Ten:m.meta?.name||'TSSS',Lat:+b.lat.toFixed(6),Lng:+b.lng.toFixed(6),Quan_Huyen:qhB||'',Gia_ty:(m.meta?.price!=null)?m.meta.price:'',Khoang_cach:dist,Ghi_chu:''});
-  });
-  return rows;
-}
-document.getElementById('btnExportCSV').onclick=()=>{
-  const rows=rowsForExport(); if(!rows) return;
-  const headers=['Loai','Ten','Lat','Lng','Quan_Huyen','Gia_ty','Khoang_cach','Ghi_chu'];
-  const csv=[headers.join(','),...rows.map(r=>headers.map(h=>String(r[h]??'').replace(/"/g,'""')).map(v=>/[",\n]/.test(v)?`"${v}"`:v).join(','))].join('\n');
-  const blob=new Blob([`\uFEFF${csv}`],{type:'text/csv;charset=utf-8;'}), a=document.createElement('a');
-  a.href=URL.createObjectURL(blob); a.download=`TS_Export_${ts()}.csv`; a.click();
-};
-document.getElementById('btnExportXLSX').onclick=()=>{
-  const rows=rowsForExport(); if(!rows) return;
-  const ws=XLSX.utils.json_to_sheet(rows); const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'DATA'); XLSX.writeFile(wb,`TS_Export_${ts()}.xlsx`);
-};
+    document.getElementById('tsbdStreet').onclick = () => {
+      const lat = parseFloat(tsbdLatEl_.value);
+      const lng = parseFloat(tsbdLngEl_.value);
+      if (!isFinite(lat) || !isFinite(lng)) {
+        alert('Nhập Lat/Lng hợp lệ cho TSBĐ');
+        return;
+      }
+      window.open(`https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${lat},${lng}`, '_blank');
+    };
 
-/* ===== KML (My Maps) ===== */
-document.getElementById('btnExportKML').onclick=()=>{
-  if(!tsbdMarker){alert('Đặt điểm TSBĐ trước khi xuất KML');return;}
-  const a=tsbdMarker.getLatLng(), qhA=findQuanHuyen(a.lat,a.lng);
-  const esc=s=>String(s??'').replace(/[<&>]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
-  const placemark=(name,desc,lat,lng,style)=>`<Placemark><name>${esc(name)}</name><description>${esc(desc)}</description><styleUrl>#${style}</styleUrl><Point><coordinates>${lng},${lat},0</coordinates></Point></Placemark>`;
-  let kml=`<?xml version="1.0" encoding="UTF-8"?><kml xmlns="http://www.opengis.net/kml/2.2"><Document>
-  <name>HCM_TSBD_TSSS_${ts()}</name>
-  <Style id="tsbd"><IconStyle><scale>1.2</scale><Icon><href>http://maps.google.com/mapfiles/kml/paddle/ylw-circle.png</href></Icon></IconStyle></Style>
-  <Style id="tsss"><IconStyle><scale>1.2</scale><Icon><href>http://maps.google.com/mapfiles/kml/paddle/blu-circle.png</href></Icon></IconStyle></Style>`;
-  kml+=placemark(tsbdTen.value||'TSBĐ',`Quận/Huyện: ${qhA||'—'}${tsbdGia.value?` | Giá: ${tsbdGia.value} tỷ`:''}`,a.lat,a.lng,'tsbd');
-  tsssMarkers.forEach(m=>{const b=m.getLatLng(), qh=findQuanHuyen(b.lat,b.lng); kml+=placemark(m.meta?.name||'TSSS',`Quận/Huyện: ${qh||'—'}${m.meta?.price!=null?` | Giá: ${m.meta.price} tỷ`:''}`,b.lat,b.lng,'tsss');});
-  kml+='</Document></kml>';
-  const blob=new Blob([kml],{type:'application/vnd.google-earth.kml+xml'}); const aTag=document.createElement('a'); aTag.href=URL.createObjectURL(blob); aTag.download=`HCM_TSBD_TSSS_${ts()}.kml`; aTag.click();
-};
-document.getElementById('btnOpenMyMaps').onclick=()=>window.open('https://www.google.com/mymaps','_blank');
-</script>
+    document.getElementById('tsssAdd').onclick = () => {
+      const lat = parseFloat(tsssLatEl.value);
+      const lng = parseFloat(tsssLngEl.value);
+      if (!isFinite(lat) || !isFinite(lng)) {
+        alert('Nhập Lat/Lng hợp lệ cho TSSS');
+        return;
+      }
+      const m = L.marker([lat, lng], { icon: iconTSSS() }).addTo(map);
+      m.meta = {
+        name: tsssTenEl.value || 'TSSS',
+        price: isFinite(+tsssGiaEl.value) ? +tsssGiaEl.value : null
+      };
+      const qh = findQuanHuyen(lat, lng);
+      const html = `<b>${m.meta.name}</b><br>
+        <small>${qh || '—'}</small>${m.meta.price != null ? `<br>Giá: ${m.meta.price} tỷ` : ''}<br>
+        <button class="svTSSS">👁️ Street View</button>`;
+      m.bindPopup(html);
+      m.on('popupopen', () => {
+        const b = document.querySelector('.svTSSS');
+        if (b) {
+          b.onclick = () => window.open(`https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${lat},${lng}`, '_blank');
+        }
+      });
+      tsssMarkers.push(m);
+      map.setView([lat, lng], 17);
+      renderList();
+    };
+
+    document.getElementById('tsssClear').onclick = () => {
+      tsssMarkers.forEach(m => map.removeLayer(m));
+      tsssMarkers.length = 0;
+      renderList();
+    };
+
+    function renderList() {
+      const box = document.getElementById('tsssList');
+      if (tsssMarkers.length === 0) {
+        box.textContent = 'Chưa có TSSS.';
+        return;
+      }
+      box.innerHTML = tsssMarkers.map(m => {
+        const p = m.getLatLng();
+        const nm = m.meta?.name || 'TSSS';
+        const pr = m.meta?.price != null ? ` — ${m.meta.price} tỷ` : '';
+        return `• ${nm} — ${p.lat.toFixed(5)}, ${p.lng.toFixed(5)}${pr}`;
+      }).join('<br>');
+    }
+
+    function rowsForExport() {
+      if (!tsbdMarker) {
+        alert('Đặt điểm TSBĐ trước khi xuất');
+        return null;
+      }
+      const a = tsbdMarker.getLatLng();
+      const qhA = findQuanHuyen(a.lat, a.lng);
+      const rows = [{
+        Loai: 'TSBD',
+        Ten: tsbdTenEl_.value || 'TSBĐ',
+        Lat: +a.lat.toFixed(6),
+        Lng: +a.lng.toFixed(6),
+        Quan_Huyen: qhA || '',
+        Gia_ty: isFinite(+tsbdGiaEl_.value) ? +tsbdGiaEl_.value : '',
+        Khoang_cach: '',
+        Ghi_chu: ''
+      }];
+      tsssMarkers.forEach(m => {
+        const b = m.getLatLng();
+        const qhB = findQuanHuyen(b.lat, b.lng);
+        const dkm = turf.distance([a.lng, a.lat], [b.lng, b.lat], { units: 'kilometers' });
+        const dist = `${(dkm * 1000).toFixed(1)} m`;
+        rows.push({
+          Loai: 'TSSS',
+          Ten: m.meta?.name || 'TSSS',
+          Lat: +b.lat.toFixed(6),
+          Lng: +b.lng.toFixed(6),
+          Quan_Huyen: qhB || '',
+          Gia_ty: (m.meta?.price != null) ? m.meta.price : '',
+          Khoang_cach: dist,
+          Ghi_chu: ''
+        });
+      });
+      return rows;
+    }
+
+    document.getElementById('btnExportCSV').onclick = () => {
+      const rows = rowsForExport();
+      if (!rows) return;
+      const headers = ['Loai', 'Ten', 'Lat', 'Lng', 'Quan_Huyen', 'Gia_ty', 'Khoang_cach', 'Ghi_chu'];
+      const csv = [headers.join(','), ...rows.map(r =>
+        headers.map(h => {
+          const v = String(r[h] ?? '');
+          return /[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
+        }).join(',')
+      )].join('\n');
+      const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8;' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `TS_Export_${(new Date()).toISOString().slice(0,19).replace(/[:T]/g, '')}.csv`;
+      a.click();
+    };
+
+    document.getElementById('btnExportXLSX').onclick = () => {
+      const rows = rowsForExport();
+      if (!rows) return;
+      const ws = XLSX.utils.json_to_sheet(rows);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'DATA');
+      XLSX.writeFile(wb, `TS_Export_${(new Date()).toISOString().slice(0,19).replace(/[:T]/g, '')}.xlsx`);
+    };
+
+    document.getElementById('btnExportKML').onclick = () => {
+      if (!tsbdMarker) {
+        alert('Đặt điểm TSBĐ trước khi xuất KML');
+        return;
+      }
+      const a = tsbdMarker.getLatLng();
+      const qhA = findQuanHuyen(a.lat, a.lng);
+      function esc(s) {
+        return String(s ?? '').replace(/[<&>]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]));
+      }
+      function placemark(name, desc, lat, lng, style) {
+        return `<Placemark><name>${esc(name)}</name><description>${esc(desc)}</description><styleUrl>#${style}</styleUrl><Point><coordinates>${lng},${lat},0</coordinates></Point></Placemark>`;
+      }
+      let kml = `<?xml version="1.0" encoding="UTF-8"?><kml xmlns="http://www.opengis.net/kml/2.2"><Document>
+        <name>HCM_TSBD_TSSS_${(new Date()).toISOString().slice(0,19).replace(/[:T]/g,'')}</name>
+        <Style id="tsbd"><IconStyle><scale>1.2</scale><Icon><href>http://maps.google.com/mapfiles/kml/paddle/ylw-circle.png</href></Icon></IconStyle></Style>
+        <Style id="tsss"><IconStyle><scale>1.2</scale><Icon><href>http://maps.google.com/mapfiles/kml/paddle/blu-circle.png</href></Icon></IconStyle></Style>`;
+      kml += placemark(
+        tsbdTenEl_.value || 'TSBĐ',
+        `Quận/Huyện: ${qhA || '—'}${tsbdGiaEl_.value ? ` | Giá: ${tsbdGiaEl_.value} tỷ` : ''}`,
+        a.lat, a.lng, 'tsbd'
+      );
+      tsssMarkers.forEach(m => {
+        const b = m.getLatLng();
+        const qh = findQuanHuyen(b.lat, b.lng);
+        kml += placemark(
+          m.meta?.name || 'TSSS',
+          `Quận/Huyện: ${qh || '—'}${m.meta?.price != null ? ` | Giá: ${m.meta.price} tỷ` : ''}`,
+          b.lat, b.lng, 'tsss'
+        );
+      });
+      kml += '</Document></kml>';
+      const blob = new Blob([kml], { type: 'application/vnd.google-earth.kml+xml' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `HCM_TSBD_TSSS_${(new Date()).toISOString().slice(0,19).replace(/[:T]/g, '')}.kml`;
+      a.click();
+    };
+
+    document.getElementById('btnOpenMyMaps').onclick = () => {
+      window.open('https://www.google.com/mymaps', '_blank');
+    };
+
+  </script>
 </body>
 </html>
