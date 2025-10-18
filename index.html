@@ -2,474 +2,184 @@
 <html lang="vi">
 <head>
 <meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Vietnam WebGIS v15 — All-in-one (Dynamic Provinces + PQTinh + Heatmap)</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.85em' font-size='84'%3E🗺️%3C/text%3E%3C/svg%3E"/>
-
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Vietnam WebGIS v15 — Full 34 Provinces (PropTechViet)</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
-<link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css"/>
-<script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
-
-<link rel="stylesheet" href="https://unpkg.com/leaflet.locatecontrol/dist/L.Control.Locate.min.css"/>
-<script src="https://unpkg.com/leaflet.locatecontrol/dist/L.Control.Locate.min.js"></script>
-
-<script src="https://unpkg.com/@turf/turf@6.5.0/turf.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.20.0/dist/xlsx.full.min.js"></script>
 <script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>
-
-<!-- Google Maps (Places + Geocoder + StreetView) -->
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyARhMzsywQPyQbrbgS6aFVb5sg7eSV34oA&libraries=places,geometry"></script>
-
 <style>
-:root{--pri:#00BFFF;--gold:#FFD700}
-*{box-sizing:border-box}
-html,body,#map{height:100%;margin:0;font-family:system-ui,Segoe UI,Roboto,Arial}
-#map{position:absolute;inset:0}
-
-/* search */
-#searchWrap{position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:1400;width:880px;max-width:94vw}
-#search{width:100%;padding:12px 14px;border:1px solid #cfd4dc;border-radius:14px;box-shadow:0 2px 8px rgba(0,0,0,.15)}
-#suggest{position:absolute;left:0;right:0;top:46px;background:#fff;border:1px solid #e5e7eb;border-radius:10px;box-shadow:0 10px 24px rgba(0,0,0,.15);display:none;max-height:300px;overflow:auto}
-.s-item{padding:10px 12px;cursor:pointer;border-bottom:1px solid #f2f2f2}
-.s-item:hover{background:#f7fbff}
-.s-sub{color:#6b7280;font-size:12px;margin-left:4px}
-
-/* tools */
-#tools{position:absolute;right:10px;top:72px;z-index:1200;display:flex;flex-direction:column;gap:10px}
-.toolbtn{background:#fff;border:1px solid #ddd;border-radius:50%;width:48px;height:48px;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.15);font-size:22px}
-#btnClear{position:absolute;right:10px;top:260px;z-index:1200;background:#fff;border:1px solid #ddd;border-radius:12px;padding:8px 12px;box-shadow:0 2px 6px rgba(0,0,0,.15);cursor:pointer}
-
-/* measure menu */
-#measureMenu{position:absolute;right:70px;top:122px;background:#fff;border:1px solid #ddd;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.18);display:none;z-index:1300}
-#measureMenu button{display:block;width:240px;padding:10px 14px;border:none;background:#fff;text-align:left;cursor:pointer;font-size:14px}
-#measureMenu button:hover{background:#f1f5f9}
-
-/* sidebar */
-#sidebarToggle{position:absolute;left:10px;top:120px;z-index:1200;background:#fff;border:1px solid #ddd;border-radius:12px;padding:8px 12px;box-shadow:0 2px 6px rgba(0,0,0,.15);cursor:pointer}
-#sidebar{position:fixed;left:0;top:0;height:100%;width:380px;background:#fff;box-shadow:4px 0 20px rgba(0,0,0,.2);transform:translateX(-400px);transition:transform .28s ease;z-index:1600;display:flex;flex-direction:column}
-#sidebar.open{transform:translateX(0)}
-#sbHead{background:var(--pri);color:#fff;padding:14px 16px;font-weight:700;display:flex;align-items:center;justify-content:space-between}
-#sidebarClose{border:none;background:transparent;color:#fff;font-size:22px;cursor:pointer}
-#sbBody{padding:12px 12px 90px;overflow:auto}
-.section{border:1px solid #e5e7eb;border-radius:12px;padding:10px 10px 6px;margin-bottom:10px}
-.section h4{margin:0 0 8px;font-size:14px}
-.form-row{display:flex;gap:8px;margin-bottom:8px}
-.form-row input,.form-row select,.form-row textarea{flex:1;padding:9px;border:1px solid #cfd4dc;border-radius:10px}
-.sm{font-size:12px;color:#6b7280}
-
-/* province label */
-.leaflet-topcenter{position:absolute;left:50%;transform:translateX(-50%);top:10px}
-#provLabel{padding:6px 10px;background:rgba(255,255,255,.9);border-radius:10px;border:1px solid #e5e7eb;font-weight:700;display:none}
-
-/* compass overlay */
-#compassOverlay{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:230px;height:230px;pointer-events:none;display:none;z-index:1300}
-#compassCanvas{width:100%;height:100%}
-
-.coords{position:absolute;left:10px;bottom:6px;background:rgba(255,255,255,.9);padding:4px 8px;border-radius:8px;font:12px monospace;z-index:1000}
-.leaflet-popup-content{min-width:300px;max-width:360px}
-
-@media(max-width:768px){
-  #searchWrap{width:94vw}
-  #sidebar{width:92vw;transform:translateX(-100vw)}
-  .leaflet-popup-content{min-width:260px;max-width:320px}
-  #compassOverlay{width:210px;height:210px}
-}
+html,body,#map{height:100%;margin:0}
+body{font-family:Roboto,Arial,Helvetica,sans-serif}
+#map{z-index:1}
+#sidebar{position:absolute;left:10px;top:10px;width:270px;background:#fff;padding:10px;border-radius:10px;box-shadow:0 2px 10px rgba(0,0,0,.25);z-index:1000}
+#sidebar select,#sidebar button{width:100%;margin-top:6px;padding:8px;border-radius:6px;border:1px solid #ccc}
+#tools{position:absolute;right:10px;top:60px;z-index:1200;display:flex;flex-direction:column;gap:8px}
+.toolbtn{background:#fff;border:1px solid #ccc;border-radius:50%;width:48px;height:48px;cursor:pointer;font-size:22px;text-align:center;line-height:48px;box-shadow:0 2px 8px rgba(0,0,0,.2)}
+.toolbtn:hover{background:#eaf6ff}
+.popup-street{width:320px;height:180px;border:0;border-radius:8px}
+.leaflet-popup-content-wrapper{border-radius:10px}
 </style>
 </head>
 <body>
-
-<!-- Search -->
-<div id="searchWrap">
-  <input id="search" placeholder="🔍 Địa chỉ / Phường-Xã / Tên cũ / Tọa độ (10.79,106.66)"/>
-  <div id="suggest"></div>
+<div id="sidebar">
+<h3>PropTechViet WebGIS</h3>
+<select id="provinceSelect"></select>
+<button id="loadProvince">Tải tỉnh này</button>
+<button id="toggleHeat">🔥 Bật/Tắt Heatmap</button>
+<button id="locateTSBD">📍 Định vị TSBĐ</button>
 </div>
-
+<div id="tools">
+<div class="toolbtn" id="btnMeasure" title="Đo khoảng cách">📏</div>
+<div class="toolbtn" id="btnArea" title="Đo diện tích">📐</div>
+<div class="toolbtn" id="btnStreet" title="StreetView">👁️</div>
+<div class="toolbtn" id="btnCompass" title="La bàn">🧭</div>
+</div>
 <div id="map"></div>
 
-<!-- Tools -->
-<div id="tools">
-  <button id="btnCompass" class="toolbtn" title="Bật/Tắt la bàn">🧭</button>
-  <button id="btnMeasure" class="toolbtn" title="Đo (khoảng cách/diện tích)">📏</button>
-  <button id="btnGPS" class="toolbtn" title="Định vị">📍</button>
-  <button id="btnHeat" class="toolbtn" title="Bật/Tắt Heatmap">🔥</button>
-</div>
-
-<div id="measureMenu">
-  <button id="mDist">📍📍 Đo khoảng cách</button>
-  <button id="mArea">⬛ Đo diện tích</button>
-  <button id="mFinish">🛑 Hoàn tất đo</button>
-</div>
-
-<button id="btnClear">🧹 Xóa tô màu</button>
-
-<!-- Sidebar -->
-<button id="sidebarToggle">📋 TSBĐ / TSSS</button>
-<div id="sidebar">
-  <div id="sbHead"><span>📋 TSBĐ / TSSS</span><button id="sidebarClose">×</button></div>
-  <div id="sbBody">
-    <div class="section">
-      <h4>Lọc Tỉnh/Thành</h4>
-      <div class="form-row">
-        <select id="provSelect"></select>
-        <button id="provLoad">Tải</button>
-      </div>
-      <div class="sm">Chọn tỉnh để tải nhanh dữ liệu hành chính (phường/xã).</div>
-    </div>
-
-    <div class="section">
-      <h4>TSBĐ</h4>
-      <div class="form-row"><input id="tsbdTen" placeholder="Tên/Địa chỉ TSBĐ"/><input id="tsbdGia" placeholder="Giá (tỷ)" type="number"/></div>
-      <div class="form-row"><input id="tsbdLat" placeholder="Lat"/><input id="tsbdLng" placeholder="Lng"/></div>
-      <div class="form-row">
-        <button id="tsbdPin">📍 Đặt điểm</button>
-        <button id="tsbdStreet">👁️ Street View</button>
-      </div>
-      <div class="sm">TSBĐ hiển thị vòng tròn <b>vàng</b>. Tự hiển thị nhãn “Phường – Quận – Tỉnh” dưới marker.</div>
-    </div>
-
-    <div class="section">
-      <h4>TSSS</h4>
-      <div class="form-row"><input id="tsssTen" placeholder="Tên/Địa chỉ so sánh"/><input id="tsssGia" placeholder="Giá (tỷ)" type="number"/></div>
-      <div class="form-row"><input id="tsssLat" placeholder="Lat"/><input id="tsssLng" placeholder="Lng"/></div>
-      <div class="form-row"><button id="tsssAdd">➕ Thêm TSSS</button><button id="tsssClear">🗑️ Xóa TSSS</button></div>
-      <div id="tsssList" class="sm">Chưa có TSSS.</div>
-    </div>
-
-    <div class="section">
-      <h4>Lưu / Tải dữ liệu</h4>
-      <div class="form-row"><button id="btnExportCSV">📄 Xuất CSV</button><button id="btnExportXLSX">📘 Xuất Excel (.xlsx)</button></div>
-      <div class="form-row"><button id="btnExportKML">🗺️ Tạo My Map (KML)</button><button id="btnOpenMyMaps">📂 Mở My Maps</button></div>
-    </div>
-  </div>
-</div>
-
-<div class="leaflet-top leaflet-topcenter"></div>
-<div id="compassOverlay"><canvas id="compassCanvas" width="230" height="230"></canvas></div>
-<div id="provLabel"></div>
-<div class="coords" id="coords">Lat: --, Lng: --</div>
-
 <script>
-/* ========= BASE MAP ========= */
-const map=L.map('map',{center:[10.775,106.7],zoom:12});
-const osm=L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap'}).addTo(map);
-const gSt=L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}');
-const gHy=L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}');
-L.control.layers({"🗺️ OSM":osm,"🌍 Google Street":gSt,"🛰️ Google Hybrid":gHy}).addTo(map);
-map.on('mousemove',e=>{document.getElementById('coords').textContent=`Lat: ${e.latlng.lat.toFixed(5)}, Lng: ${e.latlng.lng.toFixed(5)}`;});
-
-/* ========= SIDEBAR ========= */
-const sidebar=document.getElementById('sidebar');
-document.getElementById('sidebarToggle').onclick=()=>sidebar.classList.add('open');
-document.getElementById('sidebarClose').onclick=()=>sidebar.classList.remove('open');
-
-/* ========= PROVINCE LIST (34 sau sáp nhập) ========= */
+// === DANH SÁCH 34 TỈNH/THÀNH CHUẨN ===
 const PROVINCES=[
-  {name:'TP.HCM', slug:'TPHCM'},
-  {name:'An Giang', slug:'An Giang'},
-  // 👉 Thêm tiếp 32 tỉnh thật: {name:'Đồng Nai',slug:'dongnai'}, ...
+{name:'An Giang',slug:'angiang'},
+{name:'Bắc Ninh',slug:'bacninh'},
+{name:'Lâm Đồng',slug:'lamdong'},
+{name:'Cà Mau',slug:'camau'},
+{name:'Cần Thơ',slug:'cantho'},
+{name:'Cao Bằng',slug:'caobang'},
+{name:'Đà Nẵng',slug:'danang'},
+{name:'Đắk Lắk',slug:'daklak'},
+{name:'Điện Biên',slug:'dienbien'},
+{name:'Đồng Nai',slug:'dongnai'},
+{name:'Đồng Tháp',slug:'dongthap'},
+{name:'Gia Lai',slug:'gialai'},
+{name:'TP Hà Nội',slug:'hanoi'},
+{name:'Hà Tĩnh',slug:'hatinh'},
+{name:'Hải Phòng',slug:'haiphong'},
+{name:'Hưng Yên',slug:'hungyen'},
+{name:'Khánh Hòa',slug:'khanhhoa'},
+{name:'Lai Châu',slug:'laichau'},
+{name:'Lạng Sơn',slug:'langson'},
+{name:'Lào Cai',slug:'laocai'},
+{name:'Nghệ An',slug:'nghean'},
+{name:'Ninh Bình',slug:'ninhbinh'},
+{name:'Phú Thọ',slug:'phutho'},
+{name:'Quảng Ngãi',slug:'quangngai'},
+{name:'Quảng Ninh',slug:'quangninh'},
+{name:'Quảng Trị',slug:'quangtri'},
+{name:'Sơn La',slug:'sonla'},
+{name:'Tây Ninh',slug:'tayninh'},
+{name:'Thái Nguyên',slug:'thainguyen'},
+{name:'Thanh Hóa',slug:'thanhhoa'},
+{name:'TP Huế',slug:'hue'},
+{name:'TP.HCM',slug:'hcm'},
+{name:'Tuyên Quang',slug:'tuyenquang'},
+{name:'Vĩnh Long',slug:'vinhlong'}
 ];
 
-/* ========= INLINE GEOJSON DEMO (2 tỉnh) ========= */
-const INLINE_GEO = {
-  "hcm": {"type":"FeatureCollection","features":[
-    {"type":"Feature","properties":{"ten_xa":"Phường Bến Nghé","quan_huyen":"Quận 1","tinh":"TP.HCM","sap_nhap":"Bến Nghé","dtich_km2":3.49,"dan_so":197000,"gia_tb":120},
-     "geometry":{"type":"Polygon","coordinates":[[[106.701,10.780],[106.709,10.780],[106.709,10.775],[106.701,10.775],[106.701,10.780]]]}},
-    {"type":"Feature","properties":{"ten_xa":"Phường Đa Kao","quan_huyen":"Quận 1","tinh":"TP.HCM","sap_nhap":"Đa Kao","dtich_km2":1.25,"dan_so":45000,"gia_tb":95},
-     "geometry":{"type":"Polygon","coordinates":[[[106.695,10.79],[106.703,10.79],[106.703,10.785],[106.695,10.785],[106.695,10.79]]]}}
-  ]},
-  "angiang": {"type":"FeatureCollection","features":[
-    {"type":"Feature","properties":{"ten_xa":"Phường Mỹ Bình","quan_huyen":"TP Long Xuyên","tinh":"An Giang","sap_nhap":"Mỹ Bình","dtich_km2":2.8,"dan_so":65000,"gia_tb":35},
-     "geometry":{"type":"Polygon","coordinates":[[[105.420,10.380],[105.430,10.380],[105.430,10.370],[105.420,10.370],[105.420,10.380]]]}}
-  ]}
-};
+// === KHỞI TẠO MAP ===
+let map=L.map('map',{center:[10.78,106.67],zoom:8});
+let osm=L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OSM'}).addTo(map);
+let gHybrid=L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}',{attribution:'© Google'});
+let gStreet=L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}');
+let currentProvinceLayer,heatLayer,tsbdMarker;
 
-/* ========= UI: Province dropdown ========= */
-const provSelect=document.getElementById('provSelect');
-provSelect.innerHTML=PROVINCES.map(p=>`<option value="${p.slug}">${p.name}</option>`).join('');
-document.getElementById('provLoad').onclick=()=>loadProvinceIfNeeded(provSelect.value,true);
-
-/* ========= COLORS ========= */
-const PALETTE=['#1f77b4','#ff7f0e','#2ca02c','#d62728','#9467bd','#8c564b','#e377c2','#7f7f7f','#bcbd22','#17becf','#9c27b0','#00acc1','#43a047','#ff7043','#5c6bc0','#26a69a','#ef5350','#66bb6a','#42a5f5','#ab47bc'];
-function colorForProvince(slug){let h=0;for(let i=0;i<slug.length;i++){h=(h<<5)-h+slug.charCodeAt(i);h|=0;}return PALETTE[Math.abs(h)%PALETTE.length];}
-function varPri(){return getComputedStyle(document.documentElement).getPropertyValue('--pri')||'#00BFFF'}
-
-/* ========= PROVINCE DYNAMIC LOADER ========= */
-const loadedProvinces=new Map(); // slug -> {group,features,index,heat}
-let currentProv=null;
-const provLabel=document.getElementById('provLabel');
-
-async function loadProvinceIfNeeded(slug,fly=false){
-  if(!slug) return;
-  if(loadedProvinces.has(slug)){currentProv=slug;updateProvLabel();if(fly) fitProvBounds(slug);return;}
-
-  // 1) dùng dữ liệu inline nếu có
-  let geo = INLINE_GEO[slug] || null;
-
-  // 2) nếu chưa có inline → cố fetch từ assets/<slug>.geojson trong repo (nếu anh có up)
-  if(!geo){
-    const url=`assets/${slug}.geojson`;
-    try{const r=await fetch(url,{cache:'no-store'}); if(r.ok) geo=await r.json();}catch(e){}
-    if(!geo){ alert('Chưa có dữ liệu tỉnh "'+slug+'". Thêm file '+`assets/${slug}.geojson`+' vào repo để dùng.'); return; }
-  }
-
-  const color=colorForProvince(slug);
-  const group=L.layerGroup().addTo(map);
-  const index=[]; const features=[];
-
-  L.geoJSON(geo,{
-    style:{color:'#555',weight:1,fillOpacity:.08,fillColor:color},
-    onEachFeature:(f,layer)=>{
-      const p=f.properties||{};
-      const ten=p.ten_xa||p.NAME_3||p.Name||'';
-      const qh =p.quan_huyen||p.NAME_2||p.HUYEN||'';
-      const tinh=p.tinh||p.NAME_1||slug.toUpperCase();
-      const sn =p.sap_nhap||'';
-
-      // hover bright
-      layer.on('mouseover',()=>layer.setStyle({weight:2,fillOpacity:.35}));
-      layer.on('mouseout', ()=>layer.setStyle({weight:1,fillOpacity:.08}));
-
-      const center=turf.centerOfMass(f).geometry.coordinates; // [lng,lat]
-      const html=`<b>${ten}</b><br><small>${qh}, ${tinh}</small>${sn?`<div class="sm">Tên cũ: ${sn}</div>`:''}
-        <button class="sv-btn" data-lat="${center[1]}" data-lng="${center[0]}" style="margin-top:8px">👁️ Street View</button>
-        <div class="sv-wrap" style="margin-top:6px"></div>`;
-      layer.bindPopup(html);
-      index.push({ten,qh,tinh,center,bbox:turf.bbox(f),layerRef:layer, price:p.gia_tb||null});
-      features.push(f);
-      group.addLayer(layer);
-    }
-  });
-
-  // Heatmap theo gia_tb (triệu/m2)
-  const heatPts=index.map(it=>[it.center[1],it.center[0], it.price?Math.max(0.2, Math.min(1, it.price/150)):0.3]);
-  const heat = L.heatLayer(heatPts,{radius:22, blur:18, maxZoom:17});
-
-  loadedProvinces.set(slug,{group,features,index,heat});
-  currentProv=slug; updateProvLabel();
-  if(fly) fitProvBounds(slug);
-}
-
-function updateProvLabel(){
-  if(!currentProv) return;
-  const name=(PROVINCES.find(p=>p.slug===currentProv)||{}).name||currentProv.toUpperCase();
-  provLabel.style.display=map.getZoom()>=10?'inline-block':'none';
-  provLabel.textContent=name;
-}
-function fitProvBounds(slug){
-  const rec=loadedProvinces.get(slug); if(!rec) return;
-  let minx=Infinity,miny=Infinity,maxx=-Infinity,maxy=-Infinity;
-  rec.features.forEach(f=>{const b=turf.bbox(f);minx=Math.min(minx,b[0]);miny=Math.min(miny,b[1]);maxx=Math.max(maxx,b[2]);maxy=Math.max(maxy,b[3]);});
-  map.fitBounds([[miny,minx],[maxy,maxx]]);
-}
-map.on('zoomend',updateProvLabel);
-
-/* auto-load province by center (zoom>=9) */
-const gCoder=new google.maps.Geocoder();
-let timer=null;
-map.on('moveend',()=>{
-  if(map.getZoom()<9) return;
-  clearTimeout(timer);
-  timer=setTimeout(()=>{
-    const c=map.getCenter();
-    gCoder.geocode({location:{lat:c.lat,lng:c.lng}},(res,st)=>{
-      if(st!=='OK'||!res||!res[0]) return;
-      const comp=res[0].address_components||[];
-      const adm1=comp.find(x=>x.types.includes('administrative_area_level_1'));
-      const name=adm1?adm1.long_name:'';
-      const hit=PROVINCES.find(p=> name.toLowerCase().includes(
-        p.name.toLowerCase().replace('tp.','').replace('tp','').trim()
-      ));
-      if(hit){ loadProvinceIfNeeded(hit.slug,false); }
-    });
-  },250);
+// === TẠO DANH SÁCH TỈNH TRONG DROPDOWN ===
+let sel=document.getElementById('provinceSelect');
+PROVINCES.forEach(p=>{
+ let opt=document.createElement('option');opt.value=p.slug;opt.textContent=p.name;sel.appendChild(opt);
 });
 
-/* load mặc định: TP.HCM */
-loadProvinceIfNeeded('hcm', true);
-
-/* ========= HEATMAP TOGGLE ========= */
-let heatOn=false;
-document.getElementById('btnHeat').onclick=()=>{
-  const rec=loadedProvinces.get(currentProv||''); if(!rec) return alert('Chưa có dữ liệu tỉnh để bật heatmap.');
-  heatOn=!heatOn;
-  if(heatOn) rec.heat.addTo(map); else map.removeLayer(rec.heat);
-};
-
-/* ========= SEARCH: Places + tọa độ ========= */
-const searchInp=document.getElementById('search'); const suggest=document.getElementById('suggest');
-try{
-  const ac=new google.maps.places.Autocomplete(searchInp,{types:['geocode'],componentRestrictions:{country:'vn'}});
-  ac.addListener('place_changed',()=>{
-    const pl=ac.getPlace();
-    if(pl && pl.geometry){
-      const lat=pl.geometry.location.lat(), lng=pl.geometry.location.lng();
-      dropTSMarker(lat,lng,pl.formatted_address);
-      suggest.style.display='none';
-    }
-  });
-}catch(e){console.warn('Places disabled',e);}
-
-function tryParseLatLng(txt){
-  const t=txt.trim().replace(/\s+/g,' ').replace(/;/g,',');
-  const m=t.match(/(-?\d{1,2}\.\d+)[,\s]+(-?\d{1,3}\.\d+)/);
-  if(!m) return null; const lat=parseFloat(m[1]),lng=parseFloat(m[2]);
-  if(Math.abs(lat)<=90 && Math.abs(lng)<=180) return {lat,lng};
-  return null;
-}
-searchInp.addEventListener('keydown',e=>{
-  if(e.key!=='Enter') return;
-  const c=tryParseLatLng(searchInp.value);
-  if(c){ dropTSMarker(c.lat,c.lng); e.preventDefault(); }
-});
-
-/* ========= MARKERS & PQTinh labels ========= */
-function iconTSBD(){return L.divIcon({className:'',html:`<div style="width:34px;height:34px;border-radius:50%;background:var(--gold);border:3px solid #a06f00;display:flex;align-items:center;justify-content:center;font-weight:700;color:#003">TSBĐ</div>`,iconSize:[34,34],iconAnchor:[17,17]});}
-function iconTSSS(){return L.divIcon({className:'',html:`<div style="width:34px;height:34px;border-radius:50%;background:var(--pri);border:3px solid #0a4f7a;display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff">TS</div>`,iconSize:[34,34],iconAnchor:[17,17]});}
-
-let tsbdMarker=null; const tsssMarkers=[];
-
-async function labelPQT(marker,lat,lng){
-  const pqt=await findPQTinh(lat,lng);
-  const text=[pqt.phuong,pqt.quan,pqt.tinh].filter(Boolean).join(' – ');
-  if(text){
-    marker.bindTooltip(text,{permanent:true,direction:'bottom',offset:[0,18],opacity:0.9}).openTooltip();
-  }
-}
-async function dropTSMarker(lat,lng,addr=''){
-  if(tsbdMarker) map.removeLayer(tsbdMarker);
-  tsbdMarker=L.marker([lat,lng],{icon:iconTSSS()}).addTo(map);
-  map.setView([lat,lng],17);
-  if(!addr){
-    try{
-      const geocoder=new google.maps.Geocoder();
-      geocoder.geocode({location:{lat,lng}},(res,st)=>{
-        addr=(st==='OK'&&res&&res[0])?res[0].formatted_address:`${lat.toFixed(6)}, ${lng.toFixed(6)}`;
-        bindTsPopup(lat,lng,addr);
-      });
-    }catch{ bindTsPopup(lat,lng,`${lat.toFixed(6)}, ${lng.toFixed(6)}`); }
-  }else bindTsPopup(lat,lng,addr);
-  labelPQT(tsbdMarker,lat,lng);
-}
-function bindTsPopup(lat,lng,addr){
-  const html=`<b>${addr}</b>
-    <div style="margin-top:6px">
-      <button class="sv-btn" data-lat="${lat}" data-lng="${lng}">👁️ Street View</button>
-      <div class="sv-wrap" style="margin-top:6px"></div>
-    </div>`;
-  tsbdMarker.bindPopup(html).openPopup();
-}
-
-/* ========= Street View trong popup ========= */
-map.on('popupopen',e=>{
-  const root=e.popup.getElement();
-  const btn=root.querySelector('.sv-btn');
-  if(btn){
-    btn.addEventListener('click',()=>{
-      const lat=parseFloat(btn.getAttribute('data-lat'));
-      const lng=parseFloat(btn.getAttribute('data-lng'));
-      const wrap=root.querySelector('.sv-wrap'); if(!wrap) return;
-      wrap.innerHTML='<div style="width:100%;height:180px;border-radius:8px;overflow:hidden" id="svp_'+Date.now()+'"></div>';
-      const div=wrap.firstChild;
-      const svs=new google.maps.StreetViewService();
-      const loc=new google.maps.LatLng(lat,lng);
-      svs.getPanorama({location:loc,radius:50},(data,status)=>{
-        if(status==='OK'&&data&&data.location){
-          new google.maps.StreetViewPanorama(div,{pano:data.location.pano,pov:{heading:0,pitch:0},zoom:1,addressControl:false,linksControl:true,panControl:false,fullscreenControl:false});
-        }else{
-          wrap.innerHTML='<div style="padding:8px;background:#fff3cd;border:1px solid #ffeeba;border-radius:8px">⛔ Không có Street View gần vị trí này.</div>';
-        }
-      });
-    },{once:true});
-  }
-});
-
-/* ========= Measure ========= */
-const drawnItems=new L.FeatureGroup().addTo(map);
-let activeDraw=null;
-function stopMeasure(){if(activeDraw){activeDraw.disable();activeDraw=null;}}
-document.getElementById('btnMeasure').onclick=()=>{const m=document.getElementById('measureMenu');m.style.display=(m.style.display==='block')?'none':'block';};
-document.getElementById('mDist').onclick=()=>{stopMeasure();activeDraw=new L.Draw.Polyline(map,{shapeOptions:{color:varPri()}});activeDraw.enable();document.getElementById('measureMenu').style.display='none';};
-document.getElementById('mArea').onclick=()=>{stopMeasure();activeDraw=new L.Draw.Polygon(map,{shapeOptions:{color:varPri(),fillOpacity:.2}});activeDraw.enable();document.getElementById('measureMenu').style.display='none';};
-document.getElementById('mFinish').onclick=()=>{stopMeasure();document.getElementById('measureMenu').style.display='none';};
-map.on(L.Draw.Event.CREATED, e=>{
-  const layer=e.layer; drawnItems.addLayer(layer);
-  if(e.layerType==='polyline'){
-    const coords=layer.getLatLngs().map(ll=>[ll.lng,ll.lat]); let len=0;
-    for(let i=1;i<coords.length;i++) len+=turf.distance(coords[i-1],coords[i],{units:'kilometers'});
-    layer.bindPopup('Chiều dài: '+(len*1000).toFixed(1)+' m').openPopup();
-  }else if(e.layerType==='polygon'){
-    const ring=[layer.getLatLngs()[0].map(ll=>[ll.lng,ll.lat])];
-    const area=turf.area(turf.polygon([ring[0]]));
-    layer.bindPopup('Diện tích: '+area.toFixed(0)+' m²').openPopup();
-  }
-});
-
-/* ========= Compass ========= */
-const compassEl=document.getElementById('compassOverlay');
-const cv=document.getElementById('compassCanvas'), ctx=cv.getContext('2d');
-let compassOn=false, heading=0;
-document.getElementById('btnCompass').onclick=async ()=>{
-  if(typeof DeviceOrientationEvent!=='undefined' && typeof DeviceOrientationEvent.requestPermission==='function'){
-    try{ const perm=await DeviceOrientationEvent.requestPermission(); if(perm!=='granted') return alert('Không có quyền cảm biến.'); }catch{}
-  }
-  compassOn=!compassOn; compassEl.style.display=compassOn?'block':'none'; if(compassOn) drawCompass();
-};
-window.addEventListener('deviceorientationabsolute',onOrient,true);
-window.addEventListener('deviceorientation',onOrient,true);
-function onOrient(e){ if(!compassOn) return; let a=(typeof e.webkitCompassHeading==='number')?e.webkitCompassHeading:(typeof e.alpha==='number'?(360-e.alpha):0); heading=(a+360)%360; drawCompass(); }
-function drawCompass(){
-  const R=cv.width/2,C=R;
-  ctx.clearRect(0,0,cv.width,cv.height);
-  ctx.strokeStyle='rgba(0,0,0,.38)'; ctx.lineWidth=1.3;
-  ctx.beginPath(); ctx.arc(C,C,R-6,0,Math.PI*2); ctx.stroke();
-  for(let d=0; d<360; d+=10){
-    const len=(d%30===0)?10:5, a=(d-heading)*Math.PI/180;
-    const r1=R-14, r2=r1-len;
-    ctx.beginPath(); ctx.moveTo(C+Math.cos(a)*r1, C+Math.sin(a)*r1);
-    ctx.lineTo(C+Math.cos(a)*r2, C+Math.sin(a)*r2); ctx.stroke();
-  }
-  label('B',0); label('Đ',90); label('N',180); label('T',270);
-  function label(t,deg){const a=(deg-heading)*Math.PI/180,r=R-34; ctx.fillStyle='#111'; ctx.font='700 14px Segoe UI'; ctx.textAlign='center'; ctx.fillText(t,C+Math.cos(a)*r, C+Math.sin(a)*r+5);}
-  ctx.save(); ctx.translate(C,C); ctx.rotate((-heading)*Math.PI/180);
-  ctx.fillStyle='#d00'; ctx.beginPath(); ctx.moveTo(0,-(R-34)); ctx.lineTo(7,0); ctx.lineTo(-7,0); ctx.closePath(); ctx.fill(); ctx.restore();
-}
-
-/* ========= GPS ========= */
-const locateCtrl=L.control.locate({strings:{title:"Vị trí của tôi"},showCompass:true,setView:'untilPanOrZoom'});
-document.getElementById('btnGPS').onclick=()=>{ if(!locateCtrl._map) locateCtrl.addTo(map); locateCtrl.start(); };
-
-/* ========= Clear filled colors (nếu có dùng) ========= */
-let coloredLayers=[]; // để tương thích nút clear nếu anh muốn tô thủ công
-document.getElementById('btnClear').onclick=()=>{ coloredLayers.forEach(l=>l.setStyle({fillColor:null,fillOpacity:.1})); coloredLayers=[]; };
-
-/* ========= find PQTinh từ polygon đã load (ưu tiên) hoặc reverse geocode ========= */
-async function findPQTinh(lat,lng){
-  for(const [slug,rec] of loadedProvinces){
-    if(!rec||!rec.features) continue;
-    const pt=turf.point([lng,lat]);
-    for(const f of rec.features){
-      if(turf.booleanPointInPolygon(pt,f)){
+// === LOAD GEOJSON CỦA 1 TỈNH ===
+async function loadProvince(slug){
+  if(currentProvinceLayer) map.removeLayer(currentProvinceLayer);
+  try{
+    const res=await fetch(`assets/${slug}.geojson`);
+    const geo=await res.json();
+    const color="#"+Math.floor(Math.random()*16777215).toString(16);
+    currentProvinceLayer=L.geoJSON(geo,{
+      style:{color:'#555',weight:1,fillColor:color,fillOpacity:.25},
+      onEachFeature:(f,layer)=>{
         const p=f.properties||{};
-        return {phuong:(p.ten_xa||p.NAME_3||''), quan:(p.quan_huyen||p.NAME_2||''), tinh:(p.tinh||p.NAME_1|| (PROVINCES.find(x=>x.slug===slug)?.name||''))};
+        const ten=p.ten_xa||p.NAME_3||'';
+        const qh=p.quan_huyen||p.NAME_2||'';
+        const tinh=p.tinh||p.NAME_1||'';
+        layer.bindPopup(`<b>${ten}</b><br>${qh}, ${tinh}`);
+        layer.on('mouseover',()=>layer.setStyle({fillOpacity:.55}));
+        layer.on('mouseout',()=>layer.setStyle({fillOpacity:.25}));
       }
-    }
-  }
-  // fallback
-  return new Promise((resolve)=>{
-    try{
-      gCoder.geocode({location:{lat,lng}},(res,st)=>{
-        if(st!=='OK'||!res||!res[0]) return resolve({phuong:'',quan:'',tinh:''});
-        const comp=res[0].address_components||[];
-        const ward=comp.find(x=>x.types.includes('sublocality')||x.types.includes('sublocality_level_1')||x.types.includes('administrative_area_level_3'));
-        const dist=comp.find(x=>x.types.includes('administrative_area_level_2'));
-        const prov=comp.find(x=>x.types.includes('administrative_area_level_1'));
-        resolve({phuong:ward?.long_name||'', quan:dist?.long_name||'', tinh:prov?.long_name||''});
-      });
-    }catch{ resolve({phuong:'',quan:'',tinh:''}); }
-  });
+    }).addTo(map);
+    map.fitBounds(currentProvinceLayer.getBounds());
+  }catch(e){alert("Không tải được dữ liệu tỉnh "+slug);}
 }
+
+// === NÚT LOAD ===
+document.getElementById('loadProvince').onclick=()=>{loadProvince(sel.value);};
+
+// === NÚT HEATMAP DEMO ===
+document.getElementById('toggleHeat').onclick=()=>{
+ if(heatLayer){map.removeLayer(heatLayer);heatLayer=null;return;}
+ const pts=[];
+ if(currentProvinceLayer){
+  currentProvinceLayer.eachLayer(l=>{
+    const c=l.getBounds().getCenter();
+    pts.push([c.lat,c.lng,Math.random()*5]);
+  });
+ }
+ heatLayer=L.heatLayer(pts,{radius:25,blur:15,maxZoom:12}).addTo(map);
+};
+
+// === ĐỊNH VỊ TSBĐ ===
+document.getElementById('locateTSBD').onclick=()=>{
+ map.locate({setView:true,maxZoom:16});
+ map.on('locationfound',e=>{
+  if(tsbdMarker) map.removeLayer(tsbdMarker);
+  tsbdMarker=L.marker(e.latlng,{title:'TSBĐ',riseOnHover:true}).addTo(map);
+  const lat=e.latlng.lat.toFixed(6),lng=e.latlng.lng.toFixed(6);
+  tsbdMarker.bindPopup(`TSBĐ<br>Lat:${lat}<br>Lng:${lng}<br><button onclick="openStreet(${lat},${lng})">👁️ Street View</button>`).openPopup();
+ });
+};
+
+// === STREET VIEW POPUP ===
+function openStreet(lat,lng){
+ const svUrl=`https://www.google.com/maps/embed?pb=!4v!6m8!1m7!1sCAoSLEFGMVFpcE9...!2m2!1d${lat}!2d${lng}!3f0!4f0!5f0.7820865974627469`;
+ const html=`<iframe class="popup-street" src="https://www.google.com/maps?q=&layer=c&cbll=${lat},${lng}&cbp=11,0,0,0,0&z=18" allowfullscreen></iframe>`;
+ L.popup().setLatLng([lat,lng]).setContent(html).openOn(map);
+}
+
+// === CÔNG CỤ ĐO KHOẢNG CÁCH & DIỆN TÍCH (đơn giản) ===
+let measureLine=null;
+document.getElementById('btnMeasure').onclick=()=>{
+ map.once('click',e=>{
+   if(measureLine){map.removeLayer(measureLine);}
+   let start=e.latlng;
+   map.on('mousemove',ev=>{
+     if(measureLine) map.removeLayer(measureLine);
+     measureLine=L.polyline([start,ev.latlng],{color:'#00BFFF'}).addTo(map);
+     let dist=map.distance(start,ev.latlng).toFixed(1);
+     measureLine.bindTooltip(dist+" m").openTooltip();
+   });
+   map.once('click',()=>{map.off('mousemove');});
+ });
+};
+
+// === DIỆN TÍCH ===
+document.getElementById('btnArea').onclick=()=>{
+ let pts=[];let poly=null;
+ map.on('click',e=>{
+   pts.push(e.latlng);
+   if(poly) map.removeLayer(poly);
+   poly=L.polygon(pts,{color:'#00BFFF',fillOpacity:.3}).addTo(map);
+   if(pts.length>2){
+     const area=L.GeometryUtil.geodesicArea(pts);
+     poly.bindTooltip((area/1000000).toFixed(3)+" km²").openTooltip();
+   }
+ });
+};
+
+// === LA BÀN GIẢ LẬP ===
+document.getElementById('btnCompass').onclick=()=>{
+ alert("🧭 Hướng Bắc: 0°, Nam: 180°, Đông: 90°, Tây: 270°");
+};
 </script>
 </body>
 </html>
